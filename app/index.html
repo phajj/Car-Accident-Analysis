@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crash Injury Risk</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="viz-root">
+    <header>
+      <h1>Crash severity vs. likelihood of injury</h1>
+      <p class="subtitle">
+        NHTSA crash investigation data (CISS and NASS-CDS). Observed rates; injury includes deaths.
+      </p>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Model">
+      <button type="button" role="tab" id="tab-speed" data-tab="speed" aria-selected="true">Pre-crash speed</button>
+      <button type="button" role="tab" id="tab-dv" data-tab="dv" aria-selected="false">Delta-v</button>
+    </nav>
+
+    <div class="controls">
+      <div class="control" id="source-control">
+        <span class="control-label">Data</span>
+        <div class="segmented" id="source-buttons" role="group" aria-label="Data source"></div>
+      </div>
+      <div class="control">
+        <span class="control-label">Weighting</span>
+        <div class="segmented" role="group" aria-label="Weighting">
+          <button type="button" data-weighted="false" aria-pressed="true">Unweighted</button>
+          <button type="button" data-weighted="true" aria-pressed="false">Survey weights</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="tiles" id="tiles" aria-live="polite"></section>
+
+    <section class="card" role="tabpanel" aria-labelledby="tab-speed" id="panel">
+      <div class="legend" aria-hidden="true">
+        <span class="key placeholder"><span class="key-line"></span>Model fit (not yet fitted)</span>
+        <span class="key"><span class="key-dot"></span><span id="legend-bins">Observed rate per bin</span></span>
+      </div>
+      <div id="chart" class="chart">
+        <p class="status" id="status">Loading data…</p>
+      </div>
+      <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+    </section>
+
+    <details class="card table-card">
+      <summary>Table view</summary>
+      <div class="table-wrap">
+        <table id="bin-table">
+          <thead>
+            <tr>
+              <th scope="col" id="th-x">Bin (km/h)</th>
+              <th scope="col">Occupants</th>
+              <th scope="col">Injured or killed</th>
+              <th scope="col">Observed rate</th>
+              <th scope="col" class="placeholder">Model at midpoint</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <section class="notes" id="notes"></section>
+
+    <div class="fallback" id="fallback" hidden>
+      <p>Couldn't fetch the data files (this happens when the page is opened straight from disk).
+        Run <code>python3 -m http.server</code> from the repo root and open
+        <code>http://localhost:8000/app/</code>.</p>
+    </div>
+  </main>
+
+  <script src="stats.js"></script>
+  <script src="datasets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Raw NHTSA data (too large for git; see README "Rebuilding the data").
+# Keep the build scripts, notes, and the small derived CSVs the app loads.
+data/**
+!data/**/
+!data/**/*.py
+!data/**/*.sh
+!data/**/*.md
+!data/ciss_combined_speed_injury.csv
+!data/NASS_CDS/nass_cds_occupant_injury.csv
+!data/NASS_CDS/nass_cds_edr_speed.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
