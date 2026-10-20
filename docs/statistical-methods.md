@@ -35,7 +35,7 @@ occupants are not plotted.
 
 ## Model fits
 
-`analysis/fit_models.py` fits eight two-parameter curves for P(injury or death)
+`analysis/fit_models.py` fits eight two-parameter curves for Pr[injury or death]
 against x (pre-crash speed or delta-v, km/h) to each dataset in
 `app/datasets.js`. It writes `app/model_fits.json`, which the **Delta-v: best fit**
 and **model fits** tabs load.

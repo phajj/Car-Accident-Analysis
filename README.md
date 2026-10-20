@@ -28,7 +28,7 @@ Every estimate can be shown unweighted or with survey weights. Confidence
 intervals are not shown at this stage.
 
 The two **Delta-v: …** tabs draw a logistic model,
-`P(injury) = 1 / (1 + e^-(a + b × delta-v))`, weighted by `case_weight`. On
+`Pr[injury] = 1 / (1 + e^-(a + b × delta-v))`, weighted by `case_weight`. On
 **try a & b** you pick a and b; a *fit score* (the weighted geometric mean of
 the probability the curve gave each occupant's actual outcome) shows how close
 you are to the best curve. **Best fit** loads a and b from

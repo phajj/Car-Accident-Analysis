@@ -111,14 +111,14 @@ const XT = {
   ln: { f: Math.log, inv: Math.exp, title: tab => `ln(${tab.xName.toLowerCase()} in km/h)`, name: v => `ln(${v})` },
 };
 const YT = {
-  id: { f: p => p, inv: t => t, title: "P(injury)", name: "P" },
-  ln: { f: Math.log, inv: Math.exp, title: "ln P(injury)", name: "ln P" },
+  id: { f: p => p, inv: t => t, title: "Pr[injury]", name: "P" },
+  ln: { f: Math.log, inv: Math.exp, title: "ln Pr[injury]", name: "ln P" },
   logit: { f: p => Math.log(p / (1 - p)), inv: t => 1 / (1 + Math.exp(-t)), title: "logit P = ln(P / (1 − P))", name: "logit P" },
 };
 
 // Model forms, matching analysis/fit_models.py. Each has two parameters a, b.
 //   xt, yt   — the axis transformations that make the form a straight line
-//   predict  — P(injury) at x
+//   predict  — Pr[injury] at x
 //   z        — logistic forms only: the linear predictor (for a stable fit score)
 //   logX     — uses ln x, so occupants with x <= 0 are left out
 //   formula  — HTML, given the predictor's name
@@ -129,14 +129,14 @@ const FORMS = {
     xt: "id", yt: "logit",
     predict: (a, b, x) => logistic(a, b, x),
     z: (a, b, x) => a + b * x,
-    formula: v => `P(injury) = 1 / (1 + e<sup>−(a + b × ${v})</sup>)`,
+    formula: v => `Pr[injury] = 1 / (1 + e<sup>−(a + b × ${v})</sup>)`,
     effect: (a, b) => ({ label: "Odds multiplier per +10 km/h", value: `${fmtNum(Math.exp(10 * b), 2)}×`, sub: "e^(10 × b)" }),
     fifty: (a, b) => [-a / b, "= −a / b"],
   },
   semilogy: {
     xt: "id", yt: "ln",
     predict: (a, b, x) => Math.exp(a + b * x),
-    formula: v => `ln P(injury) = a + b × ${v} &nbsp;⇔&nbsp; P = e<sup>a + b × ${v}</sup>`,
+    formula: v => `ln Pr[injury] = a + b × ${v} &nbsp;⇔&nbsp; P = e<sup>a + b × ${v}</sup>`,
     effect: (a, b) => ({ label: "Risk multiplier per +10 km/h", value: `${fmtNum(Math.exp(10 * b), 2)}×`, sub: "e^(10 × b)" }),
     fifty: (a, b) => [(Math.log(0.5) - a) / b, "= (ln 0.5 − a) / b"],
   },
@@ -144,7 +144,7 @@ const FORMS = {
     xt: "ln", yt: "id",
     predict: (a, b, x) => a + b * Math.log(x),
     logX: true,
-    formula: v => `P(injury) = a + b × ln(${v})`,
+    formula: v => `Pr[injury] = a + b × ln(${v})`,
     effect: (a, b) => ({ label: "Risk change when x doubles", value: `${b >= 0 ? "+" : ""}${fmtNum(100 * b * LN2, 1)} pts`, sub: "b × ln 2 percentage points" }),
     fifty: (a, b) => [Math.exp((0.5 - a) / b), "= e^((0.5 − a) / b)"],
   },
@@ -152,7 +152,7 @@ const FORMS = {
     xt: "ln", yt: "ln",
     predict: (a, b, x) => Math.exp(a + b * Math.log(x)),
     logX: true,
-    formula: v => `ln P(injury) = a + b × ln(${v}) &nbsp;⇔&nbsp; P = e<sup>a</sup> × ${v}<sup>b</sup>`,
+    formula: v => `ln Pr[injury] = a + b × ln(${v}) &nbsp;⇔&nbsp; P = e<sup>a</sup> × ${v}<sup>b</sup>`,
     effect: (a, b) => ({ label: "Risk multiplier when x doubles", value: `${fmtNum(2 ** b, 2)}×`, sub: "2^b (b = power-model exponent)" }),
     fifty: (a, b) => [Math.exp((Math.log(0.5) - a) / b), "= e^((ln 0.5 − a) / b)"],
   },
@@ -161,7 +161,7 @@ const FORMS = {
     predict: (a, b, x) => logistic(a, b, Math.log(x)),
     z: (a, b, x) => a + b * Math.log(x),
     logX: true,
-    formula: v => `P(injury) = 1 / (1 + e<sup>−(a + b × ln ${v})</sup>)`,
+    formula: v => `Pr[injury] = 1 / (1 + e<sup>−(a + b × ln ${v})</sup>)`,
     effect: (a, b) => ({ label: "Odds multiplier when x doubles", value: `${fmtNum(2 ** b, 2)}×`, sub: "2^b" }),
     fifty: (a, b) => [Math.exp(-a / b), "= e^(−a / b)"],
   },
@@ -559,7 +559,7 @@ function renderChart(bins, tab, model, view) {
 function renderNotes(res, tab, dsKey) {
   const def = tab.model === "fits" ? fitDef(state.fit[state.tab]) : null;
   const modelNote = {
-    manual: `<li><strong>Model:</strong> a logistic curve P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>) using the
+    manual: `<li><strong>Model:</strong> a logistic curve Pr[injury] = 1 / (1 + e<sup>−(a + b × delta-v)</sup>) using the
       a and b from the sliders.</li>`,
     fitted: `<li><strong>Model:</strong> the same logistic curve with the a and b that best fit the weighted data
       (maximum likelihood), found by <code>analysis/fit_models.py</code> with a statsmodels binomial GLM.
