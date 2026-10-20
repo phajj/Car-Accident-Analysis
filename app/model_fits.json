@@ -93,15 +93,16 @@
       "cds_dv": {
         "n_used": 66797,
         "dropped_nonpositive_x": 0,
-        "converged": false,
+        "converged": true,
+        "constrained": true,
         "warnings": [
           "The Log link function does not respect the domain of the Binomial family."
         ],
-        "a": -0.8307501283415346,
-        "b": 0.012835954023274365,
-        "status": "failed",
-        "message": "GLM did not converge",
-        "score": 0.5021002780593755
+        "a": -0.857460758829743,
+        "b": 0.005165426251983645,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM did not converge once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 0 and 166 km/h",
+        "score": 0.5059111451689752
       },
       "ciss_speed": {
         "n_used": 19048,
@@ -191,15 +192,16 @@
       "cds_dv": {
         "n_used": 66796,
         "dropped_nonpositive_x": 1,
-        "converged": false,
+        "converged": true,
+        "constrained": true,
         "warnings": [
           "The Identity link function does not respect the domain of the Binomial family."
         ],
-        "a": -0.2491803166172809,
-        "b": 0.2505762734917148,
-        "status": "failed",
-        "message": "GLM did not converge",
-        "score": 0.5150208397061
+        "a": 6.683283693294875e-05,
+        "b": 0.16646163136678788,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM did not converge once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 1 and 166 km/h",
+        "score": 0.5133667969318167
       },
       "ciss_speed": {
         "n_used": 17988,
@@ -289,8 +291,19 @@
       "cds_dv": {
         "n_used": 66796,
         "dropped_nonpositive_x": 1,
-        "status": "failed",
-        "message": "ValueError: NaN, inf or invalid value detected in weights, estimation infeasible."
+        "converged": true,
+        "constrained": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family.",
+          "divide by zero encountered in divide",
+          "invalid value encountered in multiply",
+          "overflow encountered in exp"
+        ],
+        "a": -1.760905439309645,
+        "b": 0.34446589295863084,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM stopped with an error once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 1 and 166 km/h",
+        "score": 0.5134829501589332
       },
       "ciss_speed": {
         "n_used": 17988,

@@ -60,7 +60,12 @@ and **model fits** tabs load.
   ln P is taken.
 - **Maximum likelihood** is a statsmodels binomial GLM on the individual
   occupants, with `freq_weights = case_weight`. Log- and identity-link fits
-  start from the least-squares line.
+  start from the least-squares line. Those links don't keep P inside 0–100%,
+  so the GLM's iterations can step outside that range and break. When that
+  happens (an error or no convergence), the same weighted likelihood is
+  maximised directly (SLSQP) with P kept inside 0–100% at every observed x.
+  The fit's message says it was constrained. On NASS-CDS delta-v this applies
+  to `semilogy_ml`, `semilogx_ml` and `loglog_ml`.
 - Occupants with x = 0 are dropped from every ln x fit; the count is recorded
   per fit.
 - **Status:** `ok`; `out_of_range` (the curve leaves 0–100% between 1 km/h and

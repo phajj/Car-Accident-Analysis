@@ -18,8 +18,11 @@ The transformed forms are each fitted two ways:
          cannot be logged and are dropped for ln P.
     _ml  maximum likelihood on the individual occupants: a statsmodels binomial
          GLM with the matching link (logit, log or identity), freq_weights =
-         case_weight. Log and identity links do not keep P inside 0-1, so these
-         fits can fail or wander outside it; they are kept and labelled.
+         case_weight. Log and identity links do not keep P inside 0-1, so the
+         GLM can fail when its iterations step outside it. Those fits fall back
+         to maximising the same likelihood directly with P kept inside 0-1 at
+         every observed x, and say so in their message. Beyond the data the
+         curve can still leave 0-1; that is labelled.
 
 Occupants with x <= 0 are dropped from every fit that uses ln x.
 
@@ -79,6 +82,10 @@ DATASETS = {
         "bin_width": 10, "min_x_max": 100, "tick_step": 20,
     },
 }
+
+
+class FitError(Exception):
+    """A fit failure whose message is already written for the app's users."""
 
 
 def logistic(t):
@@ -181,17 +188,75 @@ def fit_ls(form, b):
 
 
 def fit_ml(form, d, start):
-    """Binomial GLM on occupants with the form's link."""
+    """Binomial GLM on occupants with the form's link.
+
+    Log and identity links can step outside 0 < P < 1 while iterating, which
+    breaks the GLM (negative variance P(1 - P)). When that happens the same
+    weighted likelihood is maximised directly, keeping P inside (0, 1) at every
+    observed x, and a note saying so is returned as the fit's message.
+    """
     x = d["x"].to_numpy()
     pred = np.log(x) if FORMS[form][1] else x
     fam = sm.families.Binomial(link=LINKS[form]())
+    glm_error = None
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        res = sm.GLM(d["y"].to_numpy(), sm.add_constant(pred), family=fam,
-                     freq_weights=d["w"].to_numpy()).fit(start_params=start)
-    a, bb = (float(v) for v in res.params)
+        try:
+            res = sm.GLM(d["y"].to_numpy(), sm.add_constant(pred), family=fam,
+                         freq_weights=d["w"].to_numpy()).fit(start_params=start)
+        except (ValueError, np.linalg.LinAlgError) as err:
+            glm_error = err
     msgs = sorted({str(w.message).splitlines()[0] for w in caught})
-    return a, bb, {"converged": bool(res.converged), "warnings": msgs}
+    if glm_error is None and res.converged:
+        a, bb = (float(v) for v in res.params)
+        return a, bb, {"converged": True, "warnings": msgs}
+    if form in ("logit_lin", "logit_logx"):  # logit stays in 0–1, so there is nothing to constrain
+        if glm_error is not None:
+            raise glm_error
+        a, bb = (float(v) for v in res.params)
+        return a, bb, {"converged": False, "warnings": msgs}
+
+    why = "the GLM stopped with an error" if glm_error is not None else "the GLM did not converge"
+    a, bb = fit_ml_bounded(form, pred, d, start)
+    note = (f"Constrained fit: this curve can exceed 100% (or drop below 0%), and {why} once its iterations "
+            f"stepped there, so the likelihood was maximised directly with risk kept inside 0–100% "
+            f"between {x.min():.0f} and {x.max():.0f} km/h")
+    return a, bb, {"converged": True, "constrained": True, "warnings": msgs, "message": note}
+
+
+def fit_ml_bounded(form, pred, d, start):
+    """Maximise the weighted binomial likelihood with eps <= P <= 1 - eps at the observed extremes.
+
+    Every form is monotone in its linear predictor a + b * pred, so bounding P at
+    the smallest and largest pred bounds it at every observed occupant.
+    """
+    from scipy.optimize import minimize
+
+    y, w = d["y"].to_numpy(), d["w"].to_numpy()
+    w = w / w.sum()
+    ends = np.array([pred.min(), pred.max()])
+    if form == "semilogx":  # identity link: P = eta
+        lo, hi = CLIP, 1 - CLIP
+        mean = lambda eta: eta
+    else:  # log link: P = exp(eta)
+        lo, hi = math.log(CLIP), math.log1p(-CLIP)
+        mean = np.exp
+
+    def nll(params):
+        p = np.clip(mean(params[0] + params[1] * pred), CLIP, 1 - CLIP)
+        return -(w * np.where(y == 1, np.log(p), np.log1p(-p))).sum()
+
+    cons = [{"type": "ineq", "fun": lambda p: hi - (p[0] + p[1] * ends)},
+            {"type": "ineq", "fun": lambda p: (p[0] + p[1] * ends) - lo}]
+    x0 = np.array(start, dtype=float) if start is not None else np.array([math.log(0.5), 0.0])
+    # Pull the start inside the bounds by lowering the intercept if needed.
+    x0[0] -= max(0.0, float(np.max(x0[0] + x0[1] * ends)) - hi + 1e-6)
+    res = minimize(nll, x0, method="SLSQP", constraints=cons, options={"maxiter": 500, "ftol": 1e-12})
+    if not res.success:
+        raise FitError(
+            "this curve can leave 0–100%, the unconstrained GLM failed once it stepped there, "
+            f"and the constrained fit that keeps risk inside 0–100% also failed ({res.message})")
+    return float(res.x[0]), float(res.x[1])
 
 
 def run_fit(fit_id, dataset, d_all, b_all):
@@ -212,6 +277,7 @@ def run_fit(fit_id, dataset, d_all, b_all):
             if form in ("semilogy", "semilogx", "loglog"):
                 start = np.array(fit_ls(form, b_all)[:2])
             a, bb, extra = fit_ml(form, d, start)
+        note = extra.pop("message", None)
         out.update(extra)
         if not (math.isfinite(a) and math.isfinite(bb)):
             raise ValueError("non-finite estimates")
@@ -230,7 +296,11 @@ def run_fit(fit_id, dataset, d_all, b_all):
                                    else f"predicted risk runs from {lo:.1%} to {hi:.1%} on 1–{grid[-1]:.0f} km/h")
             else:
                 out["status"] = "ok"
+        if note:
+            out["message"] = f"{note}; {out['message']}" if out.get("message") else note
         out["score"] = score(predict, a, bb, d)
+    except FitError as err:
+        out.update(status="failed", message=str(err))
     except Exception as err:  # noqa: BLE001 — every failure is recorded, not raised
         out.update(status="failed", message=f"{type(err).__name__}: {err}")
     return out
