@@ -73,4 +73,4 @@ This applies to every tab, because all tabs share `binRates`.
   these bars to be somewhat wider than the simple version.
 - **Error band around the model curve:** needs the uncertainty in `a` and `b`,
   which the current fit script doesn't export (see
-  `analysis/fit_dv_logistic.py`).
+  `analysis/fit_models.py`).

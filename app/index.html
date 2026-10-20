@@ -20,7 +20,12 @@
       <button type="button" role="tab" id="tab-dv" data-tab="dv" aria-selected="false">Delta-v</button>
       <button type="button" role="tab" id="tab-dvExplore" data-tab="dvExplore" aria-selected="false">Delta-v: try a &amp; b</button>
       <button type="button" role="tab" id="tab-dvFit" data-tab="dvFit" aria-selected="false">Delta-v: best fit</button>
+      <button type="button" role="tab" id="tab-fitsSpeed" data-tab="fitsSpeed" aria-selected="false">Speed: model fits</button>
+      <button type="button" role="tab" id="tab-fitsDv" data-tab="fitsDv" aria-selected="false">Delta-v: model fits</button>
     </nav>
+
+    <!-- One sub-tab per fitted model on the "model fits" tabs -->
+    <nav class="subtabs" id="fit-tabs" role="tablist" aria-label="Model fit" hidden></nav>
 
     <div class="controls">
       <div class="control" id="source-control">
@@ -40,7 +45,7 @@
       </div>
     </div>
 
-    <!-- Model inputs: sliders on the "try a & b" tab, fitted values on the "best fit" tab -->
+    <!-- Model inputs: sliders on the "try a & b" tab, fitted values on the "best fit" and "model fits" tabs -->
     <section class="card model-card" id="sliders" hidden>
       <p class="formula">P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>)</p>
       <div class="slider-row">
