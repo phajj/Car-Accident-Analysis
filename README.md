@@ -38,8 +38,10 @@ you are to the best curve. **Best fit** loads a and b from
 The two **model fits** tabs compare eight two-parameter curves, including
 semi-log and log-log transformations, each fitted by least squares on the
 transformed bin rates and/or by maximum likelihood on the occupants. Each
-sub-tab opens with a one-sentence description of its fit, and is flagged when
-the fit fails or leaves 0–100%. See
+sub-tab plots the data on that fit's transformed axes (e.g. ln P against
+ln x for log-log), where the model is a straight line; a toggle switches back
+to the original probability scale. Each sub-tab opens with a one-sentence
+description of its fit, and is flagged when the fit fails or leaves 0–100%. See
 [Statistical methods](docs/statistical-methods.md#model-fits). Re-run the fits
 after rebuilding the data:
 

@@ -270,19 +270,24 @@ th { color: var(--text-secondary); font-weight: 600; }
 }
 
 /* Model-fit sub-tabs */
+/* One row; scrolls sideways if the screen is too narrow */
 .subtabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .subtabs button {
+  flex: none;
+  white-space: nowrap;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 4px 9px;
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -297,6 +302,21 @@ th { color: var(--text-secondary); font-weight: 600; }
 
 /* Fit description and status */
 .model-card .fit-description { color: var(--text-primary); font-size: 0.95rem; }
+
+/* Compact fit box on the "model fits" tabs */
+.model-card.compact { padding: 8px 14px; margin-bottom: 10px; }
+.model-card.compact p { margin: 0 0 3px; }
+.model-card.compact p:last-child { margin-bottom: 0; }
+.model-card.compact .fit-description { font-size: 0.85rem; }
+.model-card.compact .fit-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px;
+  font-size: 0.9rem; font-variant-numeric: tabular-nums;
+}
+.model-card.compact .formula { font-size: 0.9rem; }
+.model-card.compact .hint { font-size: 0.76rem; }
+/* Fills what is left of the screen below the tabs, controls and fit box */
+.chart.short { height: clamp(260px, calc(100vh - 430px), 440px); }
+.legend-note { color: var(--text-muted); font-size: 0.78rem; }
 .badge {
   display: inline-block;
   font-size: 0.78rem;

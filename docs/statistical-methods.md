@@ -51,6 +51,10 @@ and **model fits** tabs load.
 | `loglog_ml` | ln P = a + b·ln x | maximum likelihood (log link on ln x) |
 | `logit_logx` | logit P = a + b·ln x | maximum likelihood (logit link on ln x) |
 
+- **Plots:** each form is a straight line yt(P) = a + b·xt(x) for its axis
+  transforms (x or ln x; P, ln P or logit P). The app plots the bin rates on
+  those transformed axes with the fitted line, so you can judge linearity by
+  eye. Bins at 0% (and 100% for logit) cannot be transformed and are not shown.
 - **Least squares** uses the app's plotted bins (≥ 20 occupants). Each bin is
   weighted by its total case weight. Bins with a 0% rate are dropped wherever
   ln P is taken.

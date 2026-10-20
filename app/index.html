@@ -41,7 +41,14 @@
       </div>
       <div class="control" id="weight-fixed" hidden>
         <span class="control-label">Weighting</span>
-        <span class="fixed-value">Survey weights (always on for this tab)</span>
+        <span class="fixed-value">Survey weights (always on)</span>
+      </div>
+      <div class="control" id="view-control" hidden>
+        <span class="control-label">Plot</span>
+        <div class="segmented" role="group" aria-label="Plot axes">
+          <button type="button" data-view="transformed" aria-pressed="true">Transformed</button>
+          <button type="button" data-view="original" aria-pressed="false">Original</button>
+        </div>
       </div>
     </div>
 
@@ -68,6 +75,7 @@
       <div class="legend" aria-hidden="true">
         <span class="key placeholder" id="legend-model"><span class="key-line"></span><span id="legend-model-text">Model fit (not yet fitted)</span></span>
         <span class="key"><span class="key-dot"></span><span id="legend-bins">Observed rate per bin</span></span>
+        <span class="legend-note" id="legend-note" hidden></span>
       </div>
       <div id="chart" class="chart">
         <p class="status" id="status">Loading data…</p>
@@ -85,6 +93,8 @@
               <th scope="col">Occupants</th>
               <th scope="col">Injured or killed</th>
               <th scope="col">Observed rate</th>
+              <th scope="col" id="th-xt" hidden>Transformed x</th>
+              <th scope="col" id="th-yt" hidden>Transformed rate</th>
               <th scope="col" class="placeholder" id="th-model">Model at midpoint</th>
             </tr>
           </thead>

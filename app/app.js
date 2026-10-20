@@ -46,6 +46,7 @@ const state = {
   tab: "speed",
   dataset: { speed: "ciss_speed", dv: "cds_dv", dvExplore: "cds_dv", dvFit: "cds_dv", fitsSpeed: "ciss_speed", fitsDv: "cds_dv" },
   fit: { fitsSpeed: "logit_lin", fitsDv: "logit_lin" },
+  view: "transformed",  // "model fits" tabs: plot on the fit's transformed axes or the original scale
   weighted: false,
   manual: { ...MANUAL_START },
 };
@@ -102,7 +103,21 @@ const logistic = (a, b, x) => 1 / (1 + Math.exp(-(a + b * x)));
 const softplus = t => (t > 0 ? t + Math.log1p(Math.exp(-t)) : Math.log1p(Math.exp(t)));
 const LN2 = Math.log(2);
 
+// Axis transformations. Every form below is a straight line, yt(P) = a + b·xt(x),
+// so plotting the transformed bin rates on these axes shows how close to a line
+// the data are (the "linearize, then fit a line" approach).
+const XT = {
+  id: { f: v => v, inv: u => u, title: tab => tab.xTitle, name: v => v },
+  ln: { f: Math.log, inv: Math.exp, title: tab => `ln(${tab.xName.toLowerCase()} in km/h)`, name: v => `ln(${v})` },
+};
+const YT = {
+  id: { f: p => p, inv: t => t, title: "P(injury)", name: "P" },
+  ln: { f: Math.log, inv: Math.exp, title: "ln P(injury)", name: "ln P" },
+  logit: { f: p => Math.log(p / (1 - p)), inv: t => 1 / (1 + Math.exp(-t)), title: "logit P = ln(P / (1 − P))", name: "logit P" },
+};
+
 // Model forms, matching analysis/fit_models.py. Each has two parameters a, b.
+//   xt, yt   — the axis transformations that make the form a straight line
 //   predict  — P(injury) at x
 //   z        — logistic forms only: the linear predictor (for a stable fit score)
 //   logX     — uses ln x, so occupants with x <= 0 are left out
@@ -111,6 +126,7 @@ const LN2 = Math.log(2);
 //   fifty    — x where P = 50% (needs b > 0), and how it is computed
 const FORMS = {
   logit_lin: {
+    xt: "id", yt: "logit",
     predict: (a, b, x) => logistic(a, b, x),
     z: (a, b, x) => a + b * x,
     formula: v => `P(injury) = 1 / (1 + e<sup>−(a + b × ${v})</sup>)`,
@@ -118,12 +134,14 @@ const FORMS = {
     fifty: (a, b) => [-a / b, "= −a / b"],
   },
   semilogy: {
+    xt: "id", yt: "ln",
     predict: (a, b, x) => Math.exp(a + b * x),
     formula: v => `ln P(injury) = a + b × ${v} &nbsp;⇔&nbsp; P = e<sup>a + b × ${v}</sup>`,
     effect: (a, b) => ({ label: "Risk multiplier per +10 km/h", value: `${fmtNum(Math.exp(10 * b), 2)}×`, sub: "e^(10 × b)" }),
     fifty: (a, b) => [(Math.log(0.5) - a) / b, "= (ln 0.5 − a) / b"],
   },
   semilogx: {
+    xt: "ln", yt: "id",
     predict: (a, b, x) => a + b * Math.log(x),
     logX: true,
     formula: v => `P(injury) = a + b × ln(${v})`,
@@ -131,6 +149,7 @@ const FORMS = {
     fifty: (a, b) => [Math.exp((0.5 - a) / b), "= e^((0.5 − a) / b)"],
   },
   loglog: {
+    xt: "ln", yt: "ln",
     predict: (a, b, x) => Math.exp(a + b * Math.log(x)),
     logX: true,
     formula: v => `ln P(injury) = a + b × ln(${v}) &nbsp;⇔&nbsp; P = e<sup>a</sup> × ${v}<sup>b</sup>`,
@@ -138,6 +157,7 @@ const FORMS = {
     fifty: (a, b) => [Math.exp((Math.log(0.5) - a) / b), "= e^((ln 0.5 − a) / b)"],
   },
   logit_logx: {
+    xt: "ln", yt: "logit",
     predict: (a, b, x) => logistic(a, b, Math.log(x)),
     z: (a, b, x) => a + b * Math.log(x),
     logX: true,
@@ -157,35 +177,35 @@ const METHODS = {
 const FITS = [
   {
     id: "logit_lin", form: "logit_lin", method: "ml", title: "Logistic",
-    description: "Logistic S-curve, logit P = a + b·{x}, fit by maximum likelihood on every occupant — the standard injury-risk model, which always stays between 0% and 100%.",
+    description: "Plot logit P against {x}: a straight line here means a logistic S-curve, fit by maximum likelihood on every occupant.",
   },
   {
-    id: "semilogy_ls", form: "semilogy", method: "ls", title: "Semi-log (ln P), LS",
-    description: "Semi-log transformation of the risk, ln P = a + b·{x}, fit as a straight line through the logged bin rates by weighted least squares, so risk grows by a fixed percentage per km/h and is free to climb past 100%.",
+    id: "semilogy_ls", form: "semilogy", method: "ls", title: "Semi-log y (LS)",
+    description: "Semi-log: plot ln P against {x} and fit a straight line to the bins by least squares, so risk grows a fixed % per km/h.",
   },
   {
-    id: "semilogy_ml", form: "semilogy", method: "ml", title: "Semi-log (ln P), ML",
-    description: "The same exponential curve P = e^(a + b·{x}), but fit by maximum likelihood on every occupant (binomial GLM with a log link) instead of to the binned rates.",
+    id: "semilogy_ml", form: "semilogy", method: "ml", title: "Semi-log y (ML)",
+    description: "Semi-log: the same ln P = a + b·{x} line, fit by maximum likelihood on every occupant instead of to the bins.",
   },
   {
-    id: "semilogx_ls", form: "semilogx", method: "ls", title: "Semi-log (ln x), LS",
-    description: "Semi-log transformation of the predictor, P = a + b·ln({x}), fit by weighted least squares on the bin rates, so every doubling of {x} adds the same number of percentage points of risk.",
+    id: "semilogx_ls", form: "semilogx", method: "ls", title: "Semi-log x (LS)",
+    description: "Semi-log: plot P against ln({x}) and fit a straight line to the bins by least squares, so each doubling adds fixed points.",
   },
   {
-    id: "semilogx_ml", form: "semilogx", method: "ml", title: "Semi-log (ln x), ML",
-    description: "The same P = a + b·ln({x}) line, fit by maximum likelihood on every occupant (binomial GLM with an identity link), which has nothing keeping P between 0% and 100%.",
+    id: "semilogx_ml", form: "semilogx", method: "ml", title: "Semi-log x (ML)",
+    description: "Semi-log: the same P = a + b·ln({x}) line, fit by maximum likelihood on every occupant instead of to the bins.",
   },
   {
-    id: "loglog_ls", form: "loglog", method: "ls", title: "Log-log, LS",
-    description: "Log-log (power model) transformation, ln P = a + b·ln({x}) or P = e^a·{x}^b, fit as a straight line through the logged bin rates; b is the power-model exponent, so doubling {x} multiplies risk by 2^b.",
+    id: "loglog_ls", form: "loglog", method: "ls", title: "Log-log (LS)",
+    description: "Log-log: plot ln P against ln({x}) and fit a straight line to the bins by least squares, a power model P = e^a·{x}^b.",
   },
   {
-    id: "loglog_ml", form: "loglog", method: "ml", title: "Log-log, ML",
-    description: "The same power model P = e^a·{x}^b, fit by maximum likelihood on every occupant (binomial GLM with a log link on ln {x}).",
+    id: "loglog_ml", form: "loglog", method: "ml", title: "Log-log (ML)",
+    description: "Log-log: the same ln P = a + b·ln({x}) line (power model), fit by maximum likelihood on every occupant.",
   },
   {
     id: "logit_logx", form: "logit_logx", method: "ml", title: "Logistic on ln x",
-    description: "Logistic S-curve on the log of the predictor, logit P = a + b·ln({x}), fit by maximum likelihood — risk rises fastest at low {x} and the curve always stays between 0% and 100%.",
+    description: "Plot logit P against ln({x}): a straight line here means a logistic curve in ln {x}, fit by maximum likelihood.",
   },
 ];
 const fitDef = id => FITS.find(f => f.id === id);
@@ -328,15 +348,24 @@ function drawTiles(tiles) {
 
 // ---------- Table ----------
 
-function renderTable(bins, tab, model) {
+// `view` is the fit's transformed axes ({xt, yt}) on the "model fits" tabs, else null.
+function renderTable(bins, tab, model, view) {
   document.getElementById("th-x").textContent = `${tab.xName} (km/h)`;
   document.getElementById("th-model").classList.toggle("placeholder", !model);
+  document.getElementById("th-xt").hidden = !view;
+  document.getElementById("th-yt").hidden = !view;
+  if (view) {
+    document.getElementById("th-xt").textContent = view.xt.name("midpoint");
+    document.getElementById("th-yt").textContent = view.yt === YT.id ? "rate" : `${view.yt.name.replace(" P", "")}(rate)`;
+  }
+  const t = v => (Number.isFinite(v) ? fmtNum(v, 3) : "–");
   document.querySelector("#bin-table tbody").innerHTML = bins
     .map(b => `<tr>
       <td>${b.lo}–${b.hi}</td>
       <td>${fmtInt(b.n)}</td>
       <td>${fmtInt(b.events)}</td>
       <td>${fmtPct(b.rate)}</td>
+      ${view ? `<td>${t(view.xt.f(b.mid))}</td><td>${t(view.yt.f(b.rate))}</td>` : ""}
       ${model ? `<td>${fmtPct(model.predict(b.mid))}</td>` : `<td class="placeholder">${PLACEHOLDER}</td>`}
     </tr>`)
     .join("");
@@ -352,68 +381,133 @@ function el(name, attrs = {}, parent) {
   return e;
 }
 
-function renderChart(bins, tab, model) {
+// About `count` evenly spaced round numbers covering [lo, hi], and the decimals they need.
+function niceTicks(lo, hi, count) {
+  const raw = (hi - lo) / count;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map(s => s * mag).find(s => s >= raw);
+  const ticks = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  return { ticks, decimals: Math.max(0, -Math.floor(Math.log10(step))) };
+}
+
+// Axes for the original scale: P (0–100%) against x (km/h), drawing the model curve.
+function originalAxes(bins, tab, model, iw) {
+  const xMax = Math.max(tab.minXMax, Math.ceil(bins[bins.length - 1].hi / tab.tickStep) * tab.tickStep);
+  const step = iw < 420 ? tab.tickStep * 2 : tab.tickStep;
+  const xTicks = [];
+  for (let v = 0; v <= xMax; v += step) xTicks.push(v);
+  const x0 = model && FORMS[model.form].logX ? xMax / 1600 : 0;
+  return {
+    x0: 0, x1: xMax, y0: 0, y1: 1,
+    xTicks, xFmt: v => v,
+    yTicks: [0, 0.2, 0.4, 0.6, 0.8, 1], yFmt: p => Math.round(p * 100) + "%",
+    xTitle: tab.xTitle, yTitle: "Probability of injury (incl. death)",
+    points: bins.map(b => ({ b, u: b.mid, t: b.rate })),
+    dropped: 0,
+    toX: u => u,
+    // Model curve sampled across the axis (ln x forms start just above 0)
+    curve: model ? Array.from({ length: 401 }, (_, i) => {
+      const v = x0 + (i / 400) * (xMax - x0);
+      return [v, model.predict(v)];
+    }) : [],
+    head: v => `${tab.xName} ${v.toFixed(0)} km/h <span class="tt-muted">(${(v / KMH_PER_MPH).toFixed(0)} mph)</span>`,
+    modelText: u => fmtPct(model.predict(u)),
+    binText: b => fmtPct(b.rate),
+  };
+}
+
+// Axes for the fit's transformation: yt(rate) against xt(x). On these axes the
+// model is the straight line yt = a + b·xt. Bins whose rate can't be
+// transformed (ln 0, logit of 0% or 100%) are left off.
+function transformedAxes(bins, tab, model, view, iw, ih) {
+  const { xt, yt } = view;
+  const points = bins.map(b => ({ b, u: xt.f(b.mid), t: yt.f(b.rate) })).filter(p => Number.isFinite(p.t));
+  if (!points.length) return { points, dropped: bins.length };
+  const pad = (lo, hi) => { const d = (hi - lo) * 0.06 || 1; return [lo - d, hi + d]; };
+  const us = points.map(p => p.u), ts = points.map(p => p.t);
+  const [x0, x1] = pad(Math.min(...us), Math.max(...us));
+  const [y0, y1] = pad(Math.min(...ts), Math.max(...ts));
+  const xs = niceTicks(x0, x1, iw < 420 ? 4 : 8), ys = niceTicks(y0, y1, ih < 300 ? 4 : 6);
+  const line = u => model.a + model.b * u;
+  return {
+    x0, x1, y0, y1,
+    xTicks: xs.ticks, xFmt: v => fmtNum(v, xs.decimals),
+    yTicks: ys.ticks, yFmt: v => fmtNum(v, ys.decimals),
+    xTitle: xt.title(tab), yTitle: yt.title,
+    points, dropped: bins.length - points.length,
+    toX: xt.inv,
+    curve: model ? [[x0, line(x0)], [x1, line(x1)]] : [],
+    head: (v, u) => (xt === XT.id ? "" : `${xt.name(tab.xName.toLowerCase())} = ${fmtNum(u, 2)} · `) +
+      `${tab.xName} ${v.toFixed(0)} km/h`,
+    modelText: u => `${fmtNum(line(u), 2)} <span class="tt-muted">(P = ${fmtPct(yt.inv(line(u)))})</span>`,
+    binText: b => {
+      const t = yt.f(b.rate);
+      return Number.isFinite(t)
+        ? `${fmtNum(t, 2)} <span class="tt-muted">(${fmtPct(b.rate)})</span>`
+        : `${fmtPct(b.rate)} <span class="tt-muted">(no ${yt.name})</span>`;
+    },
+  };
+}
+
+// Draws the chart; returns the axes used (with `dropped` = bins not plotted), or null.
+function renderChart(bins, tab, model, view) {
   const container = document.getElementById("chart");
   container.innerHTML = "";
   if (!bins.length) {
     container.innerHTML = `<p class="status">No bins with at least ${MIN_BIN_N} occupants.</p>`;
-    return;
+    return null;
   }
   const W = container.clientWidth, H = container.clientHeight;
   const m = { top: 12, right: 16, bottom: 48, left: 52 };
   const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
 
-  const xMax = Math.max(tab.minXMax, Math.ceil(bins[bins.length - 1].hi / tab.tickStep) * tab.tickStep);
-  const x = v => m.left + (v / xMax) * iw;
-  const y = p => m.top + (1 - p) * ih;
-  const xInv = px => ((px - m.left) / iw) * xMax;
+  const ax = view ? transformedAxes(bins, tab, model, view, iw, ih) : originalAxes(bins, tab, model, iw);
+  if (!ax.points.length) {
+    container.innerHTML = `<p class="status">No bins can be transformed for this plot.</p>`;
+    return ax;
+  }
+  const x = u => m.left + ((u - ax.x0) / (ax.x1 - ax.x0)) * iw;
+  const y = t => m.top + (1 - (t - ax.y0) / (ax.y1 - ax.y0)) * ih;
+  const xInv = px => ax.x0 + ((px - m.left) / iw) * (ax.x1 - ax.x0);
 
   const svg = el("svg", {
     width: W,
     height: H,
     role: "img",
-    "aria-label": `Observed injury rate against ${tab.xName.toLowerCase()}, by bin.`,
+    "aria-label": `Observed injury rate against ${tab.xName.toLowerCase()}, by bin${view ? ", on transformed axes" : ""}.`,
   }, container);
-  // Curves that leave 0–100% are cut off at the plot edges.
+  // Curves that leave the plot are cut off at its edges.
   el("rect", { x: m.left, y: m.top, width: iw, height: ih }, el("clipPath", { id: "plot-clip" }, el("defs", {}, svg)));
 
   const grid = el("g", { class: "grid" }, svg);
-  for (let i = 0; i <= 5; i++) {
-    const p = i / 5;
-    if (p > 0) el("line", { x1: m.left, x2: m.left + iw, y1: y(p), y2: y(p) }, grid);
-    el("text", { x: m.left - 8, y: y(p) + 4, "text-anchor": "end" }, svg).textContent = Math.round(p * 100) + "%";
+  for (const t of ax.yTicks) {
+    if (t > ax.y0) el("line", { x1: m.left, x2: m.left + iw, y1: y(t), y2: y(t) }, grid);
+    el("text", { x: m.left - 8, y: y(t) + 4, "text-anchor": "end" }, svg).textContent = ax.yFmt(t);
   }
-  const step = iw < 420 ? tab.tickStep * 2 : tab.tickStep;
-  for (let v = 0; v <= xMax; v += step) {
-    el("text", { x: x(v), y: m.top + ih + 18, "text-anchor": "middle" }, svg).textContent = v;
+  for (const u of ax.xTicks) {
+    el("text", { x: x(u), y: m.top + ih + 18, "text-anchor": "middle" }, svg).textContent = ax.xFmt(u);
   }
-  el("line", { class: "baseline", x1: m.left, x2: m.left + iw, y1: y(0), y2: y(0) }, svg);
+  el("line", { class: "baseline", x1: m.left, x2: m.left + iw, y1: m.top + ih, y2: m.top + ih }, svg);
 
   el("text", { class: "axis-title", x: m.left + iw / 2, y: H - 8, "text-anchor": "middle" }, svg)
-    .textContent = tab.xTitle;
+    .textContent = ax.xTitle;
   el("text", {
     class: "axis-title",
     transform: `translate(14, ${m.top + ih / 2}) rotate(-90)`,
     "text-anchor": "middle",
-  }, svg).textContent = "Probability of injury (incl. death)";
+  }, svg).textContent = ax.yTitle;
 
-  // Model curve (ln x forms start just above 0; values are clamped near the
-  // plot so the path stays finite, then clipped to it)
-  if (model) {
-    const steps = 400, pts = [];
-    const x0 = FORMS[model.form].logX ? xMax / steps / 4 : 0;
-    for (let i = 0; i <= steps; i++) {
-      const v = x0 + (i / steps) * (xMax - x0);
-      const p = model.predict(v);
-      if (!Number.isFinite(p)) continue;
-      pts.push(`${x(v).toFixed(1)},${y(Math.min(2, Math.max(-1, p))).toFixed(1)}`);
-    }
-    if (pts.length) el("path", { class: "model-curve", d: `M${pts.join("L")}`, "clip-path": "url(#plot-clip)" }, svg);
-  }
+  // Model curve (values are clamped near the plot so the path stays finite, then clipped to it)
+  const span = ax.y1 - ax.y0;
+  const pts = ax.curve
+    .filter(([, t]) => Number.isFinite(t))
+    .map(([u, t]) => `${x(u).toFixed(1)},${y(Math.min(ax.y1 + span, Math.max(ax.y0 - span, t))).toFixed(1)}`);
+  if (pts.length) el("path", { class: "model-curve", d: `M${pts.join("L")}`, "clip-path": "url(#plot-clip)" }, svg);
 
   // Observed bins
   const binG = el("g", {}, svg);
-  const dots = bins.map(b => el("circle", { class: "bin-dot", cx: x(b.mid), cy: y(b.rate), r: 5 }, binG));
+  const dots = ax.points.map(p => el("circle", { class: "bin-dot", cx: x(p.u), cy: y(p.t), r: 5 }, binG));
 
   // Hover layer: crosshair + the bin under the cursor
   const hover = el("g", { visibility: "hidden" }, svg);
@@ -424,21 +518,21 @@ function renderChart(bins, tab, model) {
 
   function onMove(evt) {
     const rect = svg.getBoundingClientRect();
-    const v = Math.min(xMax, Math.max(0, xInv(evt.clientX - rect.left)));
+    const u = Math.min(ax.x1, Math.max(ax.x0, xInv(evt.clientX - rect.left)));
+    const v = ax.toX(u);
     hover.setAttribute("visibility", "visible");
-    cross.setAttribute("x1", x(v)); cross.setAttribute("x2", x(v));
+    cross.setAttribute("x1", x(u)); cross.setAttribute("x2", x(u));
 
-    const bi = bins.findIndex(b => v >= b.lo && v < b.hi);
-    dots.forEach((d, i) => d.classList.toggle("active", i === bi));
-    const b = bins[bi];
+    const b = bins.find(b => v >= b.lo && v < b.hi);
+    dots.forEach((d, i) => d.classList.toggle("active", ax.points[i].b === b));
 
     tip.innerHTML =
-      `<div class="tt-head">${tab.xName} ${v.toFixed(0)} km/h <span class="tt-muted">(${(v / KMH_PER_MPH).toFixed(0)} mph)</span></div>` +
+      `<div class="tt-head">${ax.head(v, u)}</div>` +
       (model
-        ? `<div class="tt-row"><span class="sw sw-1"></span>Model<b>${fmtPct(model.predict(v))}</b></div>`
+        ? `<div class="tt-row"><span class="sw sw-1"></span>Model<b>${ax.modelText(u)}</b></div>`
         : `<div class="tt-row tt-placeholder"><span class="sw sw-1"></span>Model<b>${PLACEHOLDER}</b></div>`) +
       (b
-        ? `<div class="tt-row"><span class="sw sw-2"></span>Observed ${b.lo}–${b.hi}<b>${fmtPct(b.rate)}</b></div>` +
+        ? `<div class="tt-row"><span class="sw sw-2"></span>Observed ${b.lo}–${b.hi}<b>${ax.binText(b)}</b></div>` +
           `<div class="tt-row tt-indent">${fmtInt(b.events)} of ${fmtInt(b.n)} occupants</div>`
         : `<div class="tt-row tt-indent">No plotted bin here</div>`);
     tip.hidden = false;
@@ -457,6 +551,7 @@ function renderChart(bins, tab, model) {
   hit.addEventListener("pointermove", onMove);
   hit.addEventListener("pointerdown", onMove);
   hit.addEventListener("pointerleave", onLeave);
+  return ax;
 }
 
 // ---------- Notes ----------
@@ -476,6 +571,12 @@ function renderNotes(res, tab, dsKey) {
       0% rate can't be logged and are dropped. “ML” fits use every occupant directly (statsmodels binomial GLM with
       the matching link, <code>freq_weights = case_weight</code>). Only the logistic forms are guaranteed to stay
       between 0% and 100%; the others are drawn clipped to the chart.</li>
+      <li><strong>Transformed axes:</strong> the chart plots each bin's observed rate as
+      ${YT[FORMS[def.form].yt].name} against ${XT[FORMS[def.form].xt] === XT.id ? tab.xName.toLowerCase() : `ln(${tab.xName.toLowerCase()})`}.
+      This form is a straight line on those axes, so the points should lie along the line if the form is right.
+      ${FORMS[def.form].yt === "id" ? "" : `Bins at ${FORMS[def.form].yt === "logit" ? "0% or 100%" : "0%"} have no
+      ${YT[FORMS[def.form].yt].name} and are not plotted.`}
+      Switch the plot to “Original” to see the curve as a probability.</li>
       ${FORMS[def.form].logX ? `<li><strong>ln x:</strong> occupants with ${tab.xName.toLowerCase()} = 0 km/h have no logarithm and are
       left out of this fit and its score.</li>` : ""}`,
   }[tab.model] || `<li><strong>Model:</strong> not yet fitted — the chart shows observed rates only.</li>`;
@@ -542,6 +643,13 @@ function renderControls(fits) {
   document.getElementById("weight-fixed").hidden = !tab.weightedOnly;
   document.getElementById("sliders").hidden = tab.model !== "manual";
   document.getElementById("fit-info").hidden = tab.model !== "fitted" && tab.model !== "fits";
+  document.getElementById("view-control").hidden = tab.model !== "fits";
+  document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === state.view)));
+  // The "model fits" tabs use a compact fit box and a shorter chart so the tabs and chart fit on one screen.
+  document.getElementById("fit-info").classList.toggle("compact", tab.model === "fits");
+  document.getElementById("chart").classList.toggle("short", tab.model === "fits");
+  // ...and the stat tiles go below the chart there.
+  document.getElementById("panel").insertAdjacentElement(tab.model === "fits" ? "afterend" : "beforebegin", document.getElementById("tiles"));
   renderFitTabs(tab, fits);
   syncSliders();
   document.getElementById("legend-bins").textContent = `Observed rate per ${tab.binWidth} km/h bin`;
@@ -579,10 +687,8 @@ function renderFitInfo(tab, fits, entry) {
     return;
   }
   const v = tab.xName.toLowerCase();
-  const values = entry && Number.isFinite(entry.a)
-    ? `<p class="fit-values"><span><b>a</b> = ${fmtNum(entry.a, 4)}</span><span><b>b</b> = ${fmtNum(entry.b, 5)}</span></p>`
-    : "";
   if (tab.model === "fitted") {
+    const values = `<p class="fit-values"><span><b>a</b> = ${fmtNum(entry.a, 4)}</span><span><b>b</b> = ${fmtNum(entry.b, 5)}</span></p>`;
     box.innerHTML = `<p class="formula">${FORMS.logit_lin.formula(v)}</p>${values}
       <p class="hint">Found by a statsmodels ${esc(fits.statsmodels_version)} binomial GLM (logit link, freq_weights =
         case_weight) using all ${fmtInt(entry.n_used)} occupants with a positive case weight.</p>`;
@@ -591,20 +697,22 @@ function renderFitInfo(tab, fits, entry) {
   const def = fitDef(state.fit[state.tab]);
   const details = [];
   if (entry) {
-    details.push(`${fmtInt(entry.n_used)} occupants used`);
+    details.push(`${fmtInt(entry.n_used)} occupants`);
     if (entry.dropped_nonpositive_x) details.push(`${fmtInt(entry.dropped_nonpositive_x)} at 0 km/h dropped (no ln 0)`);
     if (def.method === "ls" && entry.bins_used) details.push(`${entry.bins_used} bins`);
     if (entry.dropped_zero_bins) details.push(`${entry.dropped_zero_bins} bins at 0% dropped (no ln 0)`);
-    if (Number.isFinite(entry.r_squared)) details.push(`R² of the straight-line fit = ${fmtNum(entry.r_squared, 3)}`);
+    if (Number.isFinite(entry.r_squared)) details.push(`R² = ${fmtNum(entry.r_squared, 3)} on the transformed bins`);
   }
   const status = entry?.status || "failed";
   let message = entry ? entry.message || "" : "No fit for this data.";
   if (status === "failed" && entry && Number.isFinite(entry.a)) message += " — the curve shown is where the fit stopped.";
+  const ab = entry && Number.isFinite(entry.a)
+    ? `<span><b>a</b> = ${fmtNum(entry.a, 4)}</span><span><b>b</b> = ${fmtNum(entry.b, 5)}</span>`
+    : "";
   box.innerHTML = `
     <p class="fit-description">${esc(def.description.replaceAll("{x}", v))}</p>
-    <p class="formula">${FORMS[def.form].formula(v)}</p>${values}
-    <p class="hint"><span class="badge ${status}">${STATUS_LABEL[status]}</span>${esc(message)}</p>
-    <p class="hint">Fit by ${METHODS[def.method]} (statsmodels ${esc(fits.statsmodels_version)})${details.length ? ` · ${details.join(" · ")}` : ""}.</p>`;
+    <p class="fit-line"><span class="formula">${FORMS[def.form].formula(v)}</span>${ab}<span class="badge ${status}">${STATUS_LABEL[status]}</span></p>
+    <p class="hint">${[esc(message), ...details].filter(Boolean).join(" · ")}</p>`;
 }
 
 // Keep each slider and its number box showing the current a / b.
@@ -652,24 +760,51 @@ async function render() {
   if (tab.model === "fitted" || tab.model === "fits") renderFitInfo(tab, fits, entry);
   renderLegend(tab, model);
   renderTiles(res, tab, model, fits, dsKey);
-  renderTable(bins, tab, model);
-  renderChart(bins, tab, model);
+  // On the "model fits" tabs, plot on the fit's transformed axes unless the original scale is chosen.
+  const def = tab.model === "fits" ? fitDef(state.fit[state.tab]) : null;
+  const axes = def ? { xt: XT[FORMS[def.form].xt], yt: YT[FORMS[def.form].yt] } : null;
+  const view = state.view === "transformed" ? axes : null;
+  renderTable(bins, tab, model, axes);
+  const ax = renderChart(bins, tab, model, view);
+  renderLegendNote(view, ax);
   renderNotes(res, tab, dsKey);
 }
 
+// Under the legend on transformed axes: what is plotted, and how many bins could not be.
+function renderLegendNote(view, ax) {
+  const note = document.getElementById("legend-note");
+  note.hidden = !view;
+  if (!view) return;
+  const what = `Plotted as ${view.yt.name} against ${view.xt === XT.id ? "x" : "ln x"}, where the model is a straight line.`;
+  const dropped = ax?.dropped
+    ? ` ${ax.dropped} bin${ax.dropped > 1 ? "s" : ""} at ${view.yt === YT.logit ? "0% or 100%" : "0%"} can't be transformed and ${ax.dropped > 1 ? "aren't" : "isn't"} shown.`
+    : "";
+  note.textContent = what + dropped;
+}
+
 // URL hash records the view so a link reopens it: #tab/dataset/weighted, or
-// #tab/dataset/fitId on the "model fits" tabs (e.g. #fitsDv/cds_dv/loglog_ls).
+// #tab/dataset/fitId[/original] on the "model fits" tabs (e.g. #fitsDv/cds_dv/loglog_ls).
 function readHash() {
-  const [tab, ds, extra] = location.hash.replace("#", "").split("/");
+  const [tab, ds, extra, scale] = location.hash.replace("#", "").split("/");
   if (TABS[tab]) state.tab = tab;
   if (ds && TABS[state.tab].datasets.includes(ds)) state.dataset[state.tab] = ds;
   if (TABS[state.tab].model === "fits" && fitDef(extra)) state.fit[state.tab] = extra;
   state.weighted = extra === "weighted";
+  state.view = scale === "original" ? "original" : "transformed";
 }
 function writeHash() {
-  const extra = TABS[state.tab].model === "fits" ? `/${state.fit[state.tab]}` : state.weighted ? "/weighted" : "";
+  const extra = TABS[state.tab].model === "fits"
+    ? `/${state.fit[state.tab]}${state.view === "original" ? "/original" : ""}`
+    : state.weighted ? "/weighted" : "";
   history.replaceState(null, "", `#${state.tab}/${state.dataset[state.tab]}${extra}`);
 }
+
+document.querySelectorAll("[data-view]").forEach(btn =>
+  btn.addEventListener("click", () => {
+    state.view = btn.dataset.view;
+    writeHash();
+    render();
+  }));
 
 document.querySelector(".tabs").addEventListener("click", e => {
   const b = e.target.closest("[data-tab]");
@@ -726,11 +861,13 @@ document.getElementById("reset-ab").addEventListener("click", () => {
   render();
 });
 
-let resizeTimer, lastWidth = 0;
+// Redraw when the chart box changes size (its height follows the window on the "model fits" tabs).
+let resizeTimer, lastSize = "";
 new ResizeObserver(entries => {
-  const w = entries[0].contentRect.width;
-  if (w === lastWidth) return;
-  lastWidth = w;
+  const { width, height } = entries[0].contentRect;
+  const size = `${width}x${height}`;
+  if (size === lastSize) return;
+  lastSize = size;
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(render, 100);
 }).observe(document.getElementById("chart"));
