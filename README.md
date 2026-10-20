@@ -19,13 +19,27 @@ severity, using NHTSA's crash investigation surveys:
 |---|---|---|
 | **Pre-crash speed** | EDR (event data recorder) pre-crash vehicle speed | CISS 2017–2024, NASS-CDS 2000–2015 (EDR PDFs), or both pooled |
 | **Delta-v** | Reconstructed total delta-v (`DVTOTAL`) | NASS-CDS 2000–2015 |
+| **Delta-v: try a & b** | Same, with a logistic curve whose a and b you set with sliders (survey weights only) | NASS-CDS 2000–2015 |
+| **Delta-v: best fit** | Same, with the best-fit logistic curve from statsmodels (survey weights only) | NASS-CDS 2000–2015 |
 
 Every estimate can be shown unweighted or with survey weights. Confidence
 intervals are not shown at this stage.
 
-**No model is fitted at this stage.** The app plots binned observed rates
-only (no confidence intervals); the model tiles, legend entry, table column and tooltip row are kept as
-placeholders (shown as "—") for a model to be added later.
+The two **Delta-v: …** tabs draw a logistic model,
+`P(injury) = 1 / (1 + e^-(a + b × delta-v))`, weighted by `case_weight`. On
+**try a & b** you pick a and b; a *fit score* (the weighted geometric mean of
+the probability the curve gave each occupant's actual outcome) shows how close
+you are to the best curve. **Best fit** loads a and b from
+`app/dv_logistic_fit.json`, written by `analysis/fit_dv_logistic.py`
+(statsmodels binomial GLM). Re-run it after rebuilding the data:
+
+```bash
+.venv/bin/python analysis/fit_dv_logistic.py
+```
+
+The other tabs plot binned observed rates only (no confidence intervals); their
+model tiles, legend entry, table column and tooltip row are placeholders
+(shown as "—").
 
 ---
 
@@ -48,7 +62,10 @@ To rebuild everything from the raw NHTSA files, see [Rebuilding the data](#rebui
 ## Repository layout
 
 ```
+analysis/
+  fit_dv_logistic.py    weighted logistic fit of injury on delta-v -> app/dv_logistic_fit.json
 app/
+  dv_logistic_fit.json  best-fit a and b loaded by the "Delta-v: best fit" tab
   index.html            page shell: tabs, controls, chart, table view, notes
   style.css             light/dark theme tokens, layout
   stats.js              CSV parsing, binned rates, survey-variance tools (browser + Node)

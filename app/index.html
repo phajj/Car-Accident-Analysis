@@ -18,6 +18,8 @@
     <nav class="tabs" role="tablist" aria-label="Model">
       <button type="button" role="tab" id="tab-speed" data-tab="speed" aria-selected="true">Pre-crash speed</button>
       <button type="button" role="tab" id="tab-dv" data-tab="dv" aria-selected="false">Delta-v</button>
+      <button type="button" role="tab" id="tab-dvExplore" data-tab="dvExplore" aria-selected="false">Delta-v: try a &amp; b</button>
+      <button type="button" role="tab" id="tab-dvFit" data-tab="dvFit" aria-selected="false">Delta-v: best fit</button>
     </nav>
 
     <div class="controls">
@@ -25,20 +27,41 @@
         <span class="control-label">Data</span>
         <div class="segmented" id="source-buttons" role="group" aria-label="Data source"></div>
       </div>
-      <div class="control">
+      <div class="control" id="weight-control">
         <span class="control-label">Weighting</span>
         <div class="segmented" role="group" aria-label="Weighting">
           <button type="button" data-weighted="false" aria-pressed="true">Unweighted</button>
           <button type="button" data-weighted="true" aria-pressed="false">Survey weights</button>
         </div>
       </div>
+      <div class="control" id="weight-fixed" hidden>
+        <span class="control-label">Weighting</span>
+        <span class="fixed-value">Survey weights (always on for this tab)</span>
+      </div>
     </div>
+
+    <!-- Model inputs: sliders on the "try a & b" tab, fitted values on the "best fit" tab -->
+    <section class="card model-card" id="sliders" hidden>
+      <p class="formula">P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>)</p>
+      <div class="slider-row">
+        <label for="a-range"><b>a</b> <span class="hint">where the curve starts</span></label>
+        <input type="range" id="a-range" data-param="a" min="-4" max="2" step="0.01">
+        <input type="number" id="a-num" data-param="a" step="0.01" aria-label="a">
+      </div>
+      <div class="slider-row">
+        <label for="b-range"><b>b</b> <span class="hint">how steeply risk climbs</span></label>
+        <input type="range" id="b-range" data-param="b" min="-0.05" max="0.25" step="0.001">
+        <input type="number" id="b-num" data-param="b" step="0.001" aria-label="b">
+      </div>
+      <button type="button" class="reset" id="reset-ab">Reset to a = 0, b = 0</button>
+    </section>
+    <section class="card model-card" id="fit-info" hidden></section>
 
     <section class="tiles" id="tiles" aria-live="polite"></section>
 
     <section class="card" role="tabpanel" aria-labelledby="tab-speed" id="panel">
       <div class="legend" aria-hidden="true">
-        <span class="key placeholder"><span class="key-line"></span>Model fit (not yet fitted)</span>
+        <span class="key placeholder" id="legend-model"><span class="key-line"></span><span id="legend-model-text">Model fit (not yet fitted)</span></span>
         <span class="key"><span class="key-dot"></span><span id="legend-bins">Observed rate per bin</span></span>
       </div>
       <div id="chart" class="chart">
@@ -57,7 +80,7 @@
               <th scope="col">Occupants</th>
               <th scope="col">Injured or killed</th>
               <th scope="col">Observed rate</th>
-              <th scope="col" class="placeholder">Model at midpoint</th>
+              <th scope="col" class="placeholder" id="th-model">Model at midpoint</th>
             </tr>
           </thead>
           <tbody></tbody>

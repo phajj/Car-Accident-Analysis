@@ -67,6 +67,7 @@ code { font-size: 0.9em; }
 /* Tabs */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 24px;
   border-bottom: 1px solid var(--grid);
@@ -234,4 +235,36 @@ th { color: var(--text-secondary); font-weight: 600; }
 @media (max-width: 560px) {
   .chart { height: 340px; }
   h1 { font-size: 1.3rem; }
+}
+
+/* Model inputs (sliders / fitted values) */
+.fixed-value { font-size: 0.9rem; color: var(--text-primary); }
+.model-card p { margin: 0 0 10px; }
+.model-card .formula { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.model-card .hint, .slider-row .hint { color: var(--text-muted); font-size: 0.82rem; font-weight: 400; }
+.slider-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 96px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.slider-row input[type="range"] { width: 100%; accent-color: var(--series-1); }
+.slider-row input[type="number"], .model-card .reset {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.slider-row input[type="number"] { width: 100%; font-variant-numeric: tabular-nums; }
+.model-card .reset { cursor: pointer; color: var(--text-secondary); }
+.fit-values { display: flex; gap: 24px; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.chart .model-curve { fill: none; stroke: var(--series-1); stroke-width: 2.5; stroke-linejoin: round; }
+
+@media (max-width: 560px) {
+  .slider-row { grid-template-columns: 1fr 88px; }
+  .slider-row label { grid-column: 1 / -1; }
 }

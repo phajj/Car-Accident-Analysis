@@ -5,8 +5,20 @@ const KMH_PER_MPH = 1.609344;
 
 // Per-tab configuration. Each tab plots observed injury rates against one
 // crash-severity measure; datasets are defined in datasets.js.
-// No model is fitted yet: model-derived tiles, table cells and tooltip rows
-// are placeholders (PLACEHOLDER) until one is added back.
+// Tabs with a `model` draw a logistic curve P = 1 / (1 + e^-(a + b*x)):
+//   "manual" — a and b come from the sliders;
+//   "fitted" — a and b come from FIT_FILE (analysis/fit_dv_logistic.py).
+// Tabs without one show placeholders (PLACEHOLDER) for model-derived values.
+// `weightedOnly` tabs always use survey weights.
+const DV_AXIS = {
+  datasets: ["cds_dv"],
+  shortLabels: { cds_dv: "NASS-CDS 2000–15" },
+  xTitle: "Total delta-v (km/h)",
+  xName: "Delta-v",
+  binWidth: 5,
+  minXMax: 60,
+  tickStep: 10,
+};
 const TABS = {
   speed: {
     datasets: ["ciss_speed", "cds_speed", "pooled_speed"],
@@ -17,22 +29,22 @@ const TABS = {
     minXMax: 100,
     tickStep: 20,
   },
-  dv: {
-    datasets: ["cds_dv"],
-    shortLabels: { cds_dv: "NASS-CDS 2000–15" },
-    xTitle: "Total delta-v (km/h)",
-    xName: "Delta-v",
-    binWidth: 5,
-    minXMax: 60,
-    tickStep: 10,
-  },
+  dv: DV_AXIS,
+  dvExplore: { ...DV_AXIS, weightedOnly: true, model: "manual" },
+  dvFit: { ...DV_AXIS, weightedOnly: true, model: "fitted" },
 };
+
+const FIT_FILE = "dv_logistic_fit.json";
+const MANUAL_START = { a: 0, b: 0 };
 
 const state = {
   tab: "speed",
-  dataset: { speed: "ciss_speed", dv: "cds_dv" },
+  dataset: { speed: "ciss_speed", dv: "cds_dv", dvExplore: "cds_dv", dvFit: "cds_dv" },
   weighted: false,
+  manual: { ...MANUAL_START },
 };
+
+const isWeighted = () => Boolean(TABS[state.tab].weightedOnly) || state.weighted;
 
 const tables = new Map();   // file -> Promise<parsed table>
 const results = new Map();  // `${dataset}|${weighted}` -> analysis
@@ -68,15 +80,54 @@ async function analysis(datasetKey, weighted) {
   return res;
 }
 
+let fitPromise;
+function loadFit() {
+  if (!fitPromise) {
+    fitPromise = fetch(FIT_FILE)
+      .then(r => { if (!r.ok) throw new Error(`${FIT_FILE}: HTTP ${r.status}`); return r.json(); });
+  }
+  return fitPromise;
+}
+
+// ---------- Model ----------
+
+const logistic = (a, b, x) => 1 / (1 + Math.exp(-(a + b * x)));
+// log(1 + e^t) without overflow
+const softplus = t => (t > 0 ? t + Math.log1p(Math.exp(-t)) : Math.log1p(Math.exp(t)));
+
+// Fit score: the weighted geometric mean of the probability the curve gave each
+// occupant's actual outcome, exp(sum w*log p / sum w). This is the likelihood the
+// best fit maximizes, so the best-fit a and b have the highest possible score.
+function fitScore(records, a, b) {
+  let sw = 0, swll = 0;
+  for (const r of records) {
+    if (!(r.w > 0)) continue;
+    const z = a + b * r.x;
+    swll += r.w * -(r.y ? softplus(-z) : softplus(z));
+    sw += r.w;
+  }
+  return Math.exp(swll / sw);
+}
+
+// The model to draw for the current tab ({a, b, label} or null).
+// `fit` is the loaded best-fit file, or null if it isn't available.
+function currentModel(tab, fit) {
+  if (tab.model === "manual") return { ...state.manual, label: "Your curve" };
+  if (tab.model === "fitted" && fit) return { a: fit.a, b: fit.b, label: "Best-fit curve (statsmodels)" };
+  return null;
+}
+
 // ---------- Formatting ----------
 
 const fmtInt = n => n.toLocaleString("en-US");
 const fmtPct = (p, d = 1) => (Number.isFinite(p) ? (p * 100).toFixed(d) + "%" : "–");
+const fmtNum = (v, d) => (Number.isFinite(v) ? v.toFixed(d).replace("-", "−") : "–");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 // ---------- Tiles ----------
 
-function renderTiles(res, tab) {
+function renderTiles(res, tab, model, fit) {
+  if (model) return renderModelTiles(res, tab, model, fit);
   const tiles = [
     {
       label: "Occupants with known outcome",
@@ -84,7 +135,7 @@ function renderTiles(res, tab) {
       sub: `${fmtInt(res.overall.events)} injured or killed · ${res.yearMin}–${res.yearMax}`,
     },
     {
-      label: state.weighted ? "Weighted injury rate" : "Injury rate in sample",
+      label: isWeighted() ? "Weighted injury rate" : "Injury rate in sample",
       value: fmtPct(res.overall.rate),
       sub: "includes deaths",
     },
@@ -102,6 +153,46 @@ function renderTiles(res, tab) {
       placeholder: true,
     },
   ];
+  drawTiles(tiles);
+}
+
+function renderModelTiles(res, tab, { a, b }, fit) {
+  const fifty = -a / b;
+  let fiftyValue = PLACEHOLDER, fiftySub = "curve must rise (b > 0)";
+  if (b > 0) {
+    fiftyValue = fifty < 0 ? "below 0 km/h" : `${fmtNum(fifty, 1)} km/h`;
+    fiftySub = "= −a / b";
+  }
+  const score = fitScore(res.records, a, b);
+  const best = fit && tab.model === "manual" ? fitScore(res.records, fit.a, fit.b) : null;
+  const tiles = [
+    {
+      label: "Weighted injury rate",
+      value: fmtPct(res.overall.rate),
+      sub: `${fmtInt(res.n)} occupants · ${res.yearMin}–${res.yearMax}`,
+    },
+    {
+      label: "Odds multiplier per +10 km/h",
+      value: `${fmtNum(Math.exp(10 * b), 2)}×`,
+      sub: "e^(10 × b)",
+    },
+    {
+      label: `${tab.xName} at 50% predicted risk`,
+      value: fiftyValue,
+      sub: fiftySub,
+    },
+    {
+      label: "Fit score (higher is better)",
+      value: fmtPct(score, 2),
+      sub: best !== null
+        ? `best possible: ${fmtPct(best, 2)}`
+        : "avg. chance given to what really happened",
+    },
+  ];
+  drawTiles(tiles);
+}
+
+function drawTiles(tiles) {
   document.getElementById("tiles").innerHTML = tiles
     .map(t => `<div class="tile${t.placeholder ? " placeholder" : ""}"><div class="label">${t.label}</div><div class="value">${t.value}</div><div class="sub">${t.sub}</div></div>`)
     .join("");
@@ -109,15 +200,16 @@ function renderTiles(res, tab) {
 
 // ---------- Table ----------
 
-function renderTable(bins, tab) {
+function renderTable(bins, tab, model) {
   document.getElementById("th-x").textContent = `${tab.xName} (km/h)`;
+  document.getElementById("th-model").classList.toggle("placeholder", !model);
   document.querySelector("#bin-table tbody").innerHTML = bins
     .map(b => `<tr>
       <td>${b.lo}–${b.hi}</td>
       <td>${fmtInt(b.n)}</td>
       <td>${fmtInt(b.events)}</td>
       <td>${fmtPct(b.rate)}</td>
-      <td class="placeholder">${PLACEHOLDER}</td>
+      ${model ? `<td>${fmtPct(logistic(model.a, model.b, b.mid))}</td>` : `<td class="placeholder">${PLACEHOLDER}</td>`}
     </tr>`)
     .join("");
 }
@@ -132,7 +224,7 @@ function el(name, attrs = {}, parent) {
   return e;
 }
 
-function renderChart(bins, tab) {
+function renderChart(bins, tab, model) {
   const container = document.getElementById("chart");
   container.innerHTML = "";
   if (!bins.length) {
@@ -175,7 +267,15 @@ function renderChart(bins, tab) {
     "text-anchor": "middle",
   }, svg).textContent = "Probability of injury (incl. death)";
 
-  // Model curve, band and 50% reference line go here once a model is added.
+  // Model curve
+  if (model) {
+    const steps = 200, pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const v = (i / steps) * xMax;
+      pts.push(`${x(v).toFixed(1)},${y(logistic(model.a, model.b, v)).toFixed(1)}`);
+    }
+    el("path", { class: "model-curve", d: `M${pts.join("L")}` }, svg);
+  }
 
   // Observed bins
   const binG = el("g", {}, svg);
@@ -200,7 +300,9 @@ function renderChart(bins, tab) {
 
     tip.innerHTML =
       `<div class="tt-head">${tab.xName} ${v.toFixed(0)} km/h <span class="tt-muted">(${(v / KMH_PER_MPH).toFixed(0)} mph)</span></div>` +
-      `<div class="tt-row tt-placeholder"><span class="sw sw-1"></span>Model<b>${PLACEHOLDER}</b></div>` +
+      (model
+        ? `<div class="tt-row"><span class="sw sw-1"></span>Model<b>${fmtPct(logistic(model.a, model.b, v))}</b></div>`
+        : `<div class="tt-row tt-placeholder"><span class="sw sw-1"></span>Model<b>${PLACEHOLDER}</b></div>`) +
       (b
         ? `<div class="tt-row"><span class="sw sw-2"></span>Observed ${b.lo}–${b.hi}<b>${fmtPct(b.rate)}</b></div>` +
           `<div class="tt-row tt-indent">${fmtInt(b.events)} of ${fmtInt(b.n)} occupants</div>`
@@ -225,11 +327,25 @@ function renderChart(bins, tab) {
 
 // ---------- Notes ----------
 
-function renderNotes(res, tab, dsKey) {
+function renderNotes(res, tab, dsKey, fit) {
+  const modelNote = {
+    manual: `<li><strong>Model:</strong> a logistic curve P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>) using the
+      a and b from the sliders.</li>`,
+    fitted: `<li><strong>Model:</strong> the same logistic curve with the a and b that best fit the weighted data
+      (maximum likelihood), found by <code>analysis/fit_dv_logistic.py</code>${fit ? ` with ${esc(fit.method)}` : ""}.
+      Re-run that script after rebuilding the data.</li>`,
+  }[tab.model] || `<li><strong>Model:</strong> not yet fitted — the chart shows observed rates only.</li>`;
+  const scoreNote = tab.model ? `
+    <li><strong>Fit score:</strong> how well the curve matches every occupant's actual outcome, as a weighted geometric
+      mean of how much credit the curve earns for each occupant. The best-fit curve has the highest possible score.
+      <br><code>score = exp( Σ w × log(credit) / Σ w )</code>
+      <br><code>credit</code> = the chance the curve gave what really happened (its prediction if injured, 100% minus it if not)
+      <br><code>w</code> = the occupant's <code>case_weight</code>
+      <br><code>Σ</code> = sum over all occupants</li>` : "";
   const common = `
     <li><strong>Outcome:</strong> an occupant counts as injured if they had any injury (CISS <code>INJSTATUS</code>/MAIS;
       NASS-CDS MAIS 1–7) <em>or</em> died. Occupants whose injury status is unknown and who did not die are excluded.</li>
-    <li><strong>Model:</strong> not yet fitted — the chart shows observed rates only.</li>
+    ${modelNote}
     <li><strong>Weighting:</strong> with survey weights on, each occupant is weighted by the case weight
       (CISS <code>CASEWGT</code>, NASS-CDS <code>RATWGT</code>).</li>
     <li><strong>Bins:</strong> each point is the observed injury rate in a ${tab.binWidth} km/h bin, plotted at the bin midpoint.
@@ -260,7 +376,7 @@ function renderNotes(res, tab, dsKey) {
   document.getElementById("notes").innerHTML =
     `<h2>How this is computed</h2><ul>${specific[dsKey]}${common}
       <li><strong>Caveats:</strong> NASS-CDS and CISS cover tow-away crashes, so "not injured" means uninjured in a tow-away
-        crash, not in all crashes. EDR-based samples include only vehicles whose EDR could be read.</li></ul>`;
+        crash, not in all crashes. EDR-based samples include only vehicles whose EDR could be read.</li>${scoreNote}</ul>`;
 }
 
 // ---------- Orchestration ----------
@@ -276,7 +392,39 @@ function renderControls() {
   document.getElementById("source-control").hidden = tab.datasets.length < 2;
   document.querySelectorAll("[data-weighted]").forEach(b =>
     b.setAttribute("aria-pressed", String((b.dataset.weighted === "true") === state.weighted)));
+  document.getElementById("weight-control").hidden = Boolean(tab.weightedOnly);
+  document.getElementById("weight-fixed").hidden = !tab.weightedOnly;
+  document.getElementById("sliders").hidden = tab.model !== "manual";
+  document.getElementById("fit-info").hidden = tab.model !== "fitted";
+  syncSliders();
   document.getElementById("legend-bins").textContent = `Observed rate per ${tab.binWidth} km/h bin`;
+}
+
+function renderLegend(tab, model) {
+  document.getElementById("legend-model").classList.toggle("placeholder", !model);
+  document.getElementById("legend-model-text").textContent = model
+    ? model.label
+    : tab.model === "fitted" ? "Best-fit curve (not available)" : "Model fit (not yet fitted)";
+}
+
+function renderFitInfo(fit) {
+  document.getElementById("fit-info").innerHTML = fit
+    ? `<p class="formula">P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>)</p>
+       <p class="fit-values"><span><b>a</b> = ${fmtNum(fit.a, 4)}</span><span><b>b</b> = ${fmtNum(fit.b, 5)}</span></p>
+       <p class="hint">Found by ${esc(fit.method)} (statsmodels ${esc(fit.statsmodels_version)}) using all
+         ${fmtInt(fit.occupants_with_positive_weight)} occupants with a positive case weight.</p>`
+    : `<p class="status">Best-fit file <code>app/${FIT_FILE}</code> not found. Run
+       <code>.venv/bin/python analysis/fit_dv_logistic.py</code> from the repo root, then reload.</p>`;
+}
+
+// Keep each slider and its number box showing the current a / b.
+function syncSliders() {
+  for (const param of ["a", "b"]) {
+    for (const input of document.querySelectorAll(`[data-param="${param}"]`)) {
+      if (document.activeElement === input && input.type === "number") continue; // don't fight typing
+      input.value = state.manual[param];
+    }
+  }
 }
 
 let renderToken = 0;
@@ -285,25 +433,36 @@ async function render() {
   const tab = TABS[state.tab];
   const dsKey = state.dataset[state.tab];
   const token = ++renderToken;
-  const key = `${dsKey}|${state.weighted}`;
+  const weighted = isWeighted();
+  const key = `${dsKey}|${weighted}`;
   if (!results.has(key)) {
     document.getElementById("chart").innerHTML = `<p class="status">Loading ${esc(DATASETS[dsKey].label)}…</p>`;
   }
-  let res;
+  let res, fit = null;
   try {
-    res = await analysis(dsKey, state.weighted);
+    res = await analysis(dsKey, weighted);
   } catch (err) {
     console.error(err);
     document.getElementById("chart").innerHTML = `<p class="status">Data not loaded.</p>`;
     document.getElementById("fallback").hidden = false;
     return;
   }
+  if (tab.model) {
+    try {
+      fit = await loadFit();
+    } catch (err) {
+      console.error(err);
+    }
+  }
   if (token !== renderToken) return; // a newer render started meanwhile
   const bins = res.bins.filter(b => b.n >= MIN_BIN_N);
-  renderTiles(res, tab);
-  renderTable(bins, tab);
-  renderChart(bins, tab);
-  renderNotes(res, tab, dsKey);
+  const model = currentModel(tab, fit);
+  if (tab.model === "fitted") renderFitInfo(fit);
+  renderLegend(tab, model);
+  renderTiles(res, tab, model, fit);
+  renderTable(bins, tab, model);
+  renderChart(bins, tab, model);
+  renderNotes(res, tab, dsKey, fit);
 }
 
 // URL hash records the view (e.g. #dv/cds_dv/weighted) so a link reopens it.
@@ -345,6 +504,19 @@ document.querySelectorAll("[data-weighted]").forEach(btn =>
     writeHash();
     render();
   }));
+
+document.getElementById("sliders").addEventListener("input", e => {
+  const param = e.target.dataset.param;
+  if (!param) return;
+  const v = parseFloat(e.target.value);
+  if (!Number.isFinite(v)) return;
+  state.manual[param] = v;
+  render();
+});
+document.getElementById("reset-ab").addEventListener("click", () => {
+  state.manual = { ...MANUAL_START };
+  render();
+});
 
 let resizeTimer, lastWidth = 0;
 new ResizeObserver(entries => {
