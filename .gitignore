@@ -1,4 +1,4 @@
-# Raw NHTSA data (too large for git; see README "Rebuilding the data").
+# Raw NHTSA data (too large for git; see docs/rebuilding-the-data.md).
 # Keep the build scripts, notes, and the small derived CSVs the app loads.
 data/**
 !data/**/
