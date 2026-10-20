@@ -32,3 +32,50 @@ five decimals for these df values.
 Each bin's rate is the (weighted) ratio `r = Σwy / Σw`, plotted at the bin
 midpoint. No confidence interval is computed or shown. Bins with fewer than 20
 occupants are not plotted.
+
+## Model fits
+
+`analysis/fit_models.py` fits eight two-parameter curves for Pr[injury or death]
+against x (pre-crash speed or delta-v, km/h) to each dataset in
+`app/datasets.js`. It writes `app/model_fits.json`, which the **Delta-v: best fit**
+and **model fits** tabs load.
+
+| Fit id | Form | Fitted by |
+|---|---|---|
+| `logit_lin` | logit P = a + b·x | maximum likelihood (logit link) |
+| `semilogy_ls` | ln P = a + b·x (semi-log, log of risk) | least squares on ln(bin rate) |
+| `semilogy_ml` | ln P = a + b·x | maximum likelihood (log link) |
+| `semilogx_ls` | P = a + b·ln x (semi-log, log of x) | least squares on bin rate vs ln(midpoint) |
+| `semilogx_ml` | P = a + b·ln x | maximum likelihood (identity link) |
+| `loglog_ls` | ln P = a + b·ln x (power model P = e^a·x^b) | least squares on ln(bin rate) vs ln(midpoint) |
+| `loglog_ml` | ln P = a + b·ln x | maximum likelihood (log link on ln x) |
+| `logit_logx` | logit P = a + b·ln x | maximum likelihood (logit link on ln x) |
+
+- **Plots:** each form is a straight line yt(P) = a + b·xt(x) for its axis
+  transforms (x or ln x; P, ln P or logit P). The app plots the bin rates on
+  those transformed axes with the fitted line, so you can judge linearity by
+  eye. Bins at 0% (and 100% for logit) cannot be transformed and are not shown.
+- **Least squares** uses the app's plotted bins (≥ 20 occupants). Each bin is
+  weighted by its total case weight. Bins with a 0% rate are dropped wherever
+  ln P is taken.
+- **Maximum likelihood** is a statsmodels binomial GLM on the individual
+  occupants, with `freq_weights = case_weight`. Log- and identity-link fits
+  start from the least-squares line. Those links don't keep P inside 0–100%,
+  so the GLM's iterations can step outside that range and break. When that
+  happens (an error or no convergence), the same weighted likelihood is
+  maximised directly (SLSQP) with P kept inside 0–100% at every observed x.
+  The fit's message says it was constrained. On NASS-CDS delta-v this applies
+  to `semilogy_ml`, `semilogx_ml` and `loglog_ml`.
+- Occupants with x = 0 are dropped from every ln x fit; the count is recorded
+  per fit.
+- **Status:** `ok`; `out_of_range` (the curve leaves 0–100% between 1 km/h and
+  the chart's right edge); or `failed` (no convergence or an error). Failed and
+  out-of-range fits are kept and shown with a flag.
+- **Fit score:** the same score the app uses everywhere, with predictions
+  clipped to [1e-9, 1 − 1e-9] so that curves leaving 0–100% can still be scored.
+  Higher is better, and scores are comparable across fits on the same dataset.
+  ln x fits are scored only on occupants with x > 0.
+
+As with the original delta-v fit, only point estimates are exported: the GLM
+standard errors under `freq_weights` treat the weighted population as
+independent observations, so they are not meaningful here.

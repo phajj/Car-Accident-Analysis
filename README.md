@@ -21,20 +21,32 @@ severity, using NHTSA's crash investigation surveys:
 | **Delta-v** | Reconstructed total delta-v (`DVTOTAL`) | NASS-CDS 2000–2015 |
 | **Delta-v: try a & b** | Same, with a logistic curve whose a and b you set with sliders (survey weights only) | NASS-CDS 2000–2015 |
 | **Delta-v: best fit** | Same, with the best-fit logistic curve from statsmodels (survey weights only) | NASS-CDS 2000–2015 |
+| **Speed: model fits** | Pre-crash speed, with one sub-tab per fitted model (survey weights only) | CISS, NASS-CDS EDR, or pooled |
+| **Delta-v: model fits** | Delta-v, with one sub-tab per fitted model (survey weights only) | NASS-CDS 2000–2015 |
 
 Every estimate can be shown unweighted or with survey weights. Confidence
 intervals are not shown at this stage.
 
 The two **Delta-v: …** tabs draw a logistic model,
-`P(injury) = 1 / (1 + e^-(a + b × delta-v))`, weighted by `case_weight`. On
+`Pr[injury] = 1 / (1 + e^-(a + b × delta-v))`, weighted by `case_weight`. On
 **try a & b** you pick a and b; a *fit score* (the weighted geometric mean of
 the probability the curve gave each occupant's actual outcome) shows how close
 you are to the best curve. **Best fit** loads a and b from
-`app/dv_logistic_fit.json`, written by `analysis/fit_dv_logistic.py`
-(statsmodels binomial GLM). Re-run it after rebuilding the data:
+`app/model_fits.json`, written by `analysis/fit_models.py`
+(statsmodels binomial GLM).
+
+The two **model fits** tabs compare eight two-parameter curves, including
+semi-log and log-log transformations, each fitted by least squares on the
+transformed bin rates and/or by maximum likelihood on the occupants. Each
+sub-tab plots the data on that fit's transformed axes (e.g. ln P against
+ln x for log-log), where the model is a straight line; a toggle switches back
+to the original probability scale. Each sub-tab opens with a one-sentence
+description of its fit, and is flagged when the fit fails or leaves 0–100%. See
+[Statistical methods](docs/statistical-methods.md#model-fits). Re-run the fits
+after rebuilding the data:
 
 ```bash
-.venv/bin/python analysis/fit_dv_logistic.py
+.venv/bin/python analysis/fit_models.py
 ```
 
 The other tabs plot binned observed rates only (no confidence intervals); their
@@ -79,9 +91,9 @@ To rebuild everything from the raw NHTSA files, see [Rebuilding the data](docs/r
 
 ```
 analysis/
-  fit_dv_logistic.py    weighted logistic fit of injury on delta-v -> app/dv_logistic_fit.json
+  fit_models.py         weighted fits of injury on speed and delta-v -> app/model_fits.json
 app/
-  dv_logistic_fit.json  best-fit a and b loaded by the "Delta-v: best fit" tab
+  model_fits.json       fitted a and b for every model and dataset (loaded by the fit tabs)
   index.html            page shell: tabs, controls, chart, table view, notes
   style.css             light/dark theme tokens, layout
   stats.js              CSV parsing, binned rates, survey-variance tools (browser + Node)

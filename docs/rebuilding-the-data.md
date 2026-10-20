@@ -20,9 +20,9 @@ python3 data/NASS_CDS/parse_nass_edr.py --jobs 12
 `build_ciss_combined.py` and `parse_nass_edr.py` use only the Python standard
 library (plus `pdftotext`).
 
-After rebuilding, re-run the delta-v logistic fit so the **Delta-v: best fit**
-tab stays in sync:
+After rebuilding, re-run the model fits so the **Delta-v: best fit** and
+**model fits** tabs stay in sync:
 
 ```bash
-.venv/bin/python analysis/fit_dv_logistic.py
+.venv/bin/python analysis/fit_models.py
 ```

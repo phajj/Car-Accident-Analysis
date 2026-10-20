@@ -20,7 +20,12 @@
       <button type="button" role="tab" id="tab-dv" data-tab="dv" aria-selected="false">Delta-v</button>
       <button type="button" role="tab" id="tab-dvExplore" data-tab="dvExplore" aria-selected="false">Delta-v: try a &amp; b</button>
       <button type="button" role="tab" id="tab-dvFit" data-tab="dvFit" aria-selected="false">Delta-v: best fit</button>
+      <button type="button" role="tab" id="tab-fitsSpeed" data-tab="fitsSpeed" aria-selected="false">Speed: model fits</button>
+      <button type="button" role="tab" id="tab-fitsDv" data-tab="fitsDv" aria-selected="false">Delta-v: model fits</button>
     </nav>
+
+    <!-- One sub-tab per fitted model on the "model fits" tabs -->
+    <nav class="subtabs" id="fit-tabs" role="tablist" aria-label="Model fit" hidden></nav>
 
     <div class="controls">
       <div class="control" id="source-control">
@@ -36,13 +41,20 @@
       </div>
       <div class="control" id="weight-fixed" hidden>
         <span class="control-label">Weighting</span>
-        <span class="fixed-value">Survey weights (always on for this tab)</span>
+        <span class="fixed-value">Survey weights (always on)</span>
+      </div>
+      <div class="control" id="view-control" hidden>
+        <span class="control-label">Plot</span>
+        <div class="segmented" role="group" aria-label="Plot axes">
+          <button type="button" data-view="transformed" aria-pressed="true">Transformed</button>
+          <button type="button" data-view="original" aria-pressed="false">Original</button>
+        </div>
       </div>
     </div>
 
-    <!-- Model inputs: sliders on the "try a & b" tab, fitted values on the "best fit" tab -->
+    <!-- Model inputs: sliders on the "try a & b" tab, fitted values on the "best fit" and "model fits" tabs -->
     <section class="card model-card" id="sliders" hidden>
-      <p class="formula">P(injury) = 1 / (1 + e<sup>−(a + b × delta-v)</sup>)</p>
+      <p class="formula">Pr[injury] = 1 / (1 + e<sup>−(a + b × delta-v)</sup>)</p>
       <div class="slider-row">
         <label for="a-range"><b>a</b> <span class="hint">where the curve starts</span></label>
         <input type="range" id="a-range" data-param="a" min="-4" max="2" step="0.01">
@@ -63,6 +75,7 @@
       <div class="legend" aria-hidden="true">
         <span class="key placeholder" id="legend-model"><span class="key-line"></span><span id="legend-model-text">Model fit (not yet fitted)</span></span>
         <span class="key"><span class="key-dot"></span><span id="legend-bins">Observed rate per bin</span></span>
+        <span class="legend-note" id="legend-note" hidden></span>
       </div>
       <div id="chart" class="chart">
         <p class="status" id="status">Loading data…</p>
@@ -80,6 +93,8 @@
               <th scope="col">Occupants</th>
               <th scope="col">Injured or killed</th>
               <th scope="col">Observed rate</th>
+              <th scope="col" id="th-xt" hidden>Transformed x</th>
+              <th scope="col" id="th-yt" hidden>Transformed rate</th>
               <th scope="col" class="placeholder" id="th-model">Model at midpoint</th>
             </tr>
           </thead>

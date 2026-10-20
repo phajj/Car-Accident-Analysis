@@ -1,0 +1,391 @@
+{
+  "fits": {
+    "logit_lin": {
+      "cds_dv": {
+        "n_used": 66797,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [],
+        "a": -1.175574823008425,
+        "b": 0.05410674755438241,
+        "status": "ok",
+        "score": 0.5155067795704964
+      },
+      "ciss_speed": {
+        "n_used": 19048,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [],
+        "a": -1.256237939135372,
+        "b": 0.005445001053464347,
+        "status": "ok",
+        "score": 0.5629647037292901
+      },
+      "cds_speed": {
+        "n_used": 7094,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [],
+        "a": -0.41138443603006597,
+        "b": 0.006249201794460294,
+        "status": "ok",
+        "score": 0.5037260670646775
+      },
+      "pooled_speed": {
+        "n_used": 22653,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [],
+        "a": -1.082264975307732,
+        "b": 0.0036913140069488454,
+        "status": "ok",
+        "score": 0.5518009541047747
+      }
+    },
+    "semilogy_ls": {
+      "cds_dv": {
+        "n_used": 66797,
+        "dropped_nonpositive_x": 0,
+        "bins_used": 22,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.8694449057497038,
+        "a": -1.2582473885149454,
+        "b": 0.02350220434817401,
+        "status": "out_of_range",
+        "message": "predicted risk runs from 29.1% to 377.0% on 1\u2013110 km/h (outside 0\u2013100% from about 54 km/h)",
+        "score": 0.5057664616693418
+      },
+      "ciss_speed": {
+        "n_used": 19048,
+        "dropped_nonpositive_x": 0,
+        "bins_used": 18,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.49825397184588505,
+        "a": -1.489538380683046,
+        "b": 0.003495627227631932,
+        "status": "ok",
+        "score": 0.5629470795775864
+      },
+      "cds_speed": {
+        "n_used": 7094,
+        "dropped_nonpositive_x": 0,
+        "bins_used": 15,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.28912055237972123,
+        "a": -0.9285073782277111,
+        "b": 0.0034172237867472,
+        "status": "ok",
+        "score": 0.5036725038295946
+      },
+      "pooled_speed": {
+        "n_used": 22653,
+        "dropped_nonpositive_x": 0,
+        "bins_used": 17,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.3060548464089844,
+        "a": -1.3658404214913398,
+        "b": 0.0023224546129413286,
+        "status": "ok",
+        "score": 0.5517873634632988
+      }
+    },
+    "semilogy_ml": {
+      "cds_dv": {
+        "n_used": 66797,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "constrained": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -0.857460758829743,
+        "b": 0.005165426251983645,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM did not converge once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 0 and 166 km/h",
+        "score": 0.5059111451689752
+      },
+      "ciss_speed": {
+        "n_used": 19048,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -1.500940194413384,
+        "b": 0.003922473055008544,
+        "status": "ok",
+        "score": 0.5629736661753819
+      },
+      "cds_speed": {
+        "n_used": 7094,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -0.909620014767059,
+        "b": 0.0032158572263157534,
+        "status": "ok",
+        "score": 0.503702697710695
+      },
+      "pooled_speed": {
+        "n_used": 22653,
+        "dropped_nonpositive_x": 0,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -1.3710811876258853,
+        "b": 0.00260038847346018,
+        "status": "ok",
+        "score": 0.5518008015436815
+      }
+    },
+    "semilogx_ls": {
+      "cds_dv": {
+        "n_used": 66796,
+        "dropped_nonpositive_x": 1,
+        "bins_used": 22,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.9411388790523723,
+        "a": -0.24956438692657673,
+        "b": 0.24833367338969697,
+        "status": "out_of_range",
+        "message": "predicted risk runs from -25.0% to 91.8% on 1\u2013110 km/h",
+        "score": 0.5149774308597507
+      },
+      "ciss_speed": {
+        "n_used": 17988,
+        "dropped_nonpositive_x": 1060,
+        "bins_used": 18,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.3475880961219473,
+        "a": 0.15983042719098214,
+        "b": 0.030512871410065923,
+        "status": "ok",
+        "score": 0.5615133128339751
+      },
+      "cds_speed": {
+        "n_used": 6708,
+        "dropped_nonpositive_x": 386,
+        "bins_used": 15,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.24171442706508872,
+        "a": 0.3086078376516752,
+        "b": 0.04458611758573046,
+        "status": "ok",
+        "score": 0.5037233799220182
+      },
+      "pooled_speed": {
+        "n_used": 21410,
+        "dropped_nonpositive_x": 1243,
+        "bins_used": 17,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.23619188214548315,
+        "a": 0.2111759132138071,
+        "b": 0.02113157064912989,
+        "status": "ok",
+        "score": 0.5512572688430964
+      }
+    },
+    "semilogx_ml": {
+      "cds_dv": {
+        "n_used": 66796,
+        "dropped_nonpositive_x": 1,
+        "converged": true,
+        "constrained": true,
+        "warnings": [
+          "The Identity link function does not respect the domain of the Binomial family."
+        ],
+        "a": 6.683283693294875e-05,
+        "b": 0.16646163136678788,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM did not converge once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 1 and 166 km/h",
+        "score": 0.5133667969318167
+      },
+      "ciss_speed": {
+        "n_used": 17988,
+        "dropped_nonpositive_x": 1060,
+        "converged": true,
+        "warnings": [
+          "The Identity link function does not respect the domain of the Binomial family."
+        ],
+        "a": 0.15711982922677561,
+        "b": 0.03098481298840738,
+        "status": "ok",
+        "score": 0.561515307903094
+      },
+      "cds_speed": {
+        "n_used": 6708,
+        "dropped_nonpositive_x": 386,
+        "converged": true,
+        "warnings": [
+          "The Identity link function does not respect the domain of the Binomial family."
+        ],
+        "a": 0.28336683787883593,
+        "b": 0.05048620314407217,
+        "status": "ok",
+        "score": 0.5037772737608314
+      },
+      "pooled_speed": {
+        "n_used": 21410,
+        "dropped_nonpositive_x": 1243,
+        "converged": true,
+        "warnings": [
+          "The Identity link function does not respect the domain of the Binomial family."
+        ],
+        "a": 0.2038223250743153,
+        "b": 0.02281428548725749,
+        "status": "ok",
+        "score": 0.5512633999485297
+      }
+    },
+    "loglog_ls": {
+      "cds_dv": {
+        "n_used": 66796,
+        "dropped_nonpositive_x": 1,
+        "bins_used": 22,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.9844442994489574,
+        "a": -2.3237577167201957,
+        "b": 0.5308732426029157,
+        "status": "out_of_range",
+        "message": "predicted risk runs from 9.8% to 118.7% on 1\u2013110 km/h (outside 0\u2013100% from about 80 km/h)",
+        "score": 0.5152446990895069
+      },
+      "ciss_speed": {
+        "n_used": 17988,
+        "dropped_nonpositive_x": 1060,
+        "bins_used": 18,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.3919980802976236,
+        "a": -1.6966195538150801,
+        "b": 0.10336601251211876,
+        "status": "ok",
+        "score": 0.5615547256772987
+      },
+      "cds_speed": {
+        "n_used": 6708,
+        "dropped_nonpositive_x": 386,
+        "bins_used": 15,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.23630527740294238,
+        "a": -1.1012119109334766,
+        "b": 0.09112713887039686,
+        "status": "ok",
+        "score": 0.5037587364328779
+      },
+      "pooled_speed": {
+        "n_used": 21410,
+        "dropped_nonpositive_x": 1243,
+        "bins_used": 17,
+        "dropped_zero_bins": 0,
+        "r_squared": 0.23228347461657806,
+        "a": -1.4951210556200452,
+        "b": 0.0661342457018013,
+        "status": "ok",
+        "score": 0.5512670993338719
+      }
+    },
+    "loglog_ml": {
+      "cds_dv": {
+        "n_used": 66796,
+        "dropped_nonpositive_x": 1,
+        "converged": true,
+        "constrained": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family.",
+          "divide by zero encountered in divide",
+          "invalid value encountered in multiply",
+          "overflow encountered in exp"
+        ],
+        "a": -1.760905439309645,
+        "b": 0.34446589295863084,
+        "status": "ok",
+        "message": "Constrained fit: this curve can exceed 100% (or drop below 0%), and the GLM stopped with an error once its iterations stepped there, so the likelihood was maximised directly with risk kept inside 0\u2013100% between 1 and 166 km/h",
+        "score": 0.5134829501589332
+      },
+      "ciss_speed": {
+        "n_used": 17988,
+        "dropped_nonpositive_x": 1060,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -1.8172121499396723,
+        "b": 0.13842611712332853,
+        "status": "ok",
+        "score": 0.5616317543276353
+      },
+      "cds_speed": {
+        "n_used": 6708,
+        "dropped_nonpositive_x": 386,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -1.2197225424536486,
+        "b": 0.12537427871825108,
+        "status": "ok",
+        "score": 0.5039018951631135
+      },
+      "pooled_speed": {
+        "n_used": 21410,
+        "dropped_nonpositive_x": 1243,
+        "converged": true,
+        "warnings": [
+          "The Log link function does not respect the domain of the Binomial family."
+        ],
+        "a": -1.5840363765993186,
+        "b": 0.0917582345854056,
+        "status": "ok",
+        "score": 0.5513109977531845
+      }
+    },
+    "logit_logx": {
+      "cds_dv": {
+        "n_used": 66796,
+        "dropped_nonpositive_x": 1,
+        "converged": true,
+        "warnings": [],
+        "a": -3.2541235875298105,
+        "b": 1.0889959905621869,
+        "status": "ok",
+        "score": 0.5153980857598429
+      },
+      "ciss_speed": {
+        "n_used": 17988,
+        "dropped_nonpositive_x": 1060,
+        "converged": true,
+        "warnings": [],
+        "a": -1.652401954585303,
+        "b": 0.17973642064589387,
+        "status": "ok",
+        "score": 0.5615936571940631
+      },
+      "cds_speed": {
+        "n_used": 6708,
+        "dropped_nonpositive_x": 386,
+        "converged": true,
+        "warnings": [],
+        "a": -0.9074727587304767,
+        "b": 0.21292248783821807,
+        "status": "ok",
+        "score": 0.5038120449521518
+      },
+      "pooled_speed": {
+        "n_used": 21410,
+        "dropped_nonpositive_x": 1243,
+        "converged": true,
+        "warnings": [],
+        "a": -1.3585292166020613,
+        "b": 0.12275998290969249,
+        "status": "ok",
+        "score": 0.5512939279972676
+      }
+    }
+  },
+  "weights": "case_weight (CISS CASEWGT, NASS-CDS RATWGT)",
+  "statsmodels_version": "0.15.0",
+  "min_bin_n": 20
+}
