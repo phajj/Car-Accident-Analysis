@@ -79,6 +79,7 @@ To rebuild everything from the raw NHTSA files, see [Rebuilding the data](docs/r
 | [Outcome definition](docs/outcome-definition.md) | How injured / not injured / unknown is coded for each survey |
 | [Analysis datasets](docs/analysis-datasets.md) | The four datasets in `app/datasets.js`, eligibility rules, pooling NASS-CDS with CISS |
 | [Statistical methods](docs/statistical-methods.md) | Taylor linearization variance, binned observed rates |
+| [Mathematical models](docs/mathematical-models.md) | Formula and meaning of every model, fitting methods, fit score |
 | [EDR speed extraction](docs/edr-speed-extraction.md) | How `parse_nass_edr.py` reads NASS-CDS EDR PDFs; coverage and validation |
 | [Rebuilding the data](docs/rebuilding-the-data.md) | Steps to regenerate the CSVs from the raw NHTSA files |
 | [Data dictionaries](docs/data-dictionaries.md) | Column definitions for the output CSVs |
